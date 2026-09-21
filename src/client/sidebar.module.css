@@ -2119,52 +2119,6 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
 /* A history row: line 1 = hash + subject, line 2 = ref badges + author/date
    (badges live on the second line so they never crowd the subject). */
 
-/* ── Intercepted produced-files row ────────────────────────────────────── */
-
-.producedRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 4px 0;
-}
-
-.producedLabel {
-  font: var(--dsw-font-xxs-12);
-  color: var(--dsw-alias-label-tertiary);
-}
-
-.producedChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  max-width: 200px;
-  padding: 2px 8px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 999px;
-  background: var(--dsw-alias-bg-layer-2);
-  color: var(--dsw-alias-label-secondary);
-  font: var(--dsw-font-xxs-12);
-  cursor: pointer;
-  overflow: hidden;
-}
-
-.producedChip:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
-}
-
-.producedChip span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.producedMore {
-  font: var(--dsw-font-xxs-12);
-  color: var(--dsw-alias-label-tertiary);
-}
-
 /* ── Shared interaction rules ──────────────────────────────────────────── */
 
 /* Keyboard focus stays visible on every interactive control (the styling

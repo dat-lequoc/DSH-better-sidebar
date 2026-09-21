@@ -19,7 +19,7 @@ import type { GitLogEntry, GitStatusEntry, GitStatusResult, GitWorktree, Session
 import { api } from '../api.ts'
 import { usePolling } from '../use-polling.ts'
 import { baseName, isWithinWorkspace, relativeTo } from '../paths.ts'
-import { resolveSidebarPath } from '../produced-files.ts'
+import { resolveSidebarPath } from '../paths.ts'
 import { relativeTime, t } from '../locales.ts'
 import type { SidebarDiffRef, SidebarStore } from '../state.ts'
 import css from './changes.module.css'

@@ -2,9 +2,8 @@
  * Client half of dsh-better-sidebar: resolves the user's "Side card"
  * preferences through the plugin's own fenced settings route, mounts the
  * right sidebar portal (inside an error boundary so a rendering failure
- * shows an error strip instead of a blank panel), registers the turn-tail
- * interception, and contributes the Side card settings section to the DSH
- * Settings shell. Requires the runtime's slots and sessions services; the
+ * shows an error strip instead of a blank panel), and contributes the Side
+ * card settings section to the DSH Settings shell. Requires the runtime's slots and sessions services; the
  * bundle itself is a module-table consumer only (react + ui-primitives +
  * xterm, all provided or inlined).
  */
@@ -17,7 +16,6 @@ import { revalidateChunksOnReactivate, setChunkModuleSystem } from './chunk-load
 import { registerBuiltins } from './builtins/index.ts'
 import { Sidebar } from './Sidebar.tsx'
 import { RenderBoundary } from './RenderBoundary.tsx'
-import { registerTurnTailInterception } from './intercept.tsx'
 import { createNativeTabRecords } from './native/tab-adapter.tsx'
 import { registerNativeSurface } from './native/index.ts'
 import { registerBottomToggle } from './sidebar/bottom-toggle.tsx'
@@ -38,9 +36,7 @@ import './layout.css'
  *  (rc.8+) is the client module system the chunk loader resolves its
  *  externals through; `connection` (0.1.2-alpha.2+) is the Remote transport's
  *  recovery lifecycle the side chat's disconnect banner reads — Cordis guards
- *  service access without inject. The `remote.session` namespace is NOT here:
- *  it mounts asynchronously, so the open-path interception reaches it through
- *  `ctx.inject` (see intercept.tsx). */
+ *  service access without inject. */
 export const inject = ['slots', 'sessions', 'locale', 'modules', 'connection']
 
 /**
@@ -130,6 +126,29 @@ export function apply(ctx: Context): void {
       attachBetterLocale(undefined)
     }
   }, 'dsh-better-sidebar: better-locale lazy integration')
+  // A failure anywhere in the client lifecycle must never take the app down
+  // silently: log with the plugin prefix and pin a visible diagnostic strip
+  // to the page so a blank panel is never the only symptom. This strip is
+  // the last-resort reporter (no CSS module is reachable from here), so its
+  // colors go through skin token chains with the previous hexes as the
+  // chain tails — worst case (no skin tokens on the page) it renders
+  // byte-identical to the old hardcoded bar, and any `--dsw-alias-*` skin
+  // re-themes it (guide §12: no hardcoded colors).
+  const fail = (phase: string, error: unknown): void => {
+    console.error(`[dsh-better-sidebar] ${phase} error:`, error)
+    try {
+      const bar = document.createElement('div')
+      bar.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:2147483000;max-width:70vw;padding:8px 12px;'
+        + 'font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;'
+        + 'color:var(--dsw-alias-state-error-primary,#f2a1a1);'
+        + 'background:var(--dsw-alias-bg-layer-3,var(--dsw-alias-bg-base,#1b1b22));'
+        + 'border:1px solid var(--dsw-alias-state-error-primary,#f2a1a1);border-radius:8px;white-space:pre-wrap'
+      bar.textContent = `[dsh-better-sidebar] ${phase} error: ${error instanceof Error ? error.message : String(error)}`
+      document.body.appendChild(bar)
+    } catch {
+      // Nothing left to report with.
+    }
+  }
   // One store instance per activation: production code creates it only here,
   // then hands it to the mounted panel and closes over it in the slot
   // registrations (the official createXXXStore() factory rule — no
@@ -149,7 +168,10 @@ export function apply(ctx: Context): void {
   const nativeSurface = createNativeSurface(ctx, nativeRecords)
   service.setSurface(nativeSurface)
   ctx.effect(
-    () => registerNativeSurface({ ctx, store: sidebarStore, service, records: nativeRecords }),
+    () => registerNativeSurface({
+      ctx, store: sidebarStore, service, records: nativeRecords,
+      reportFailure: (phase, error) => { fail(`native ${phase}`, error) },
+    }),
     'dsh-better-sidebar: native right-Sidebar registrations',
   )
   // The bottom workbench's expand/collapse button in DSH's session header
@@ -188,29 +210,6 @@ export function apply(ctx: Context): void {
     () => registerBuiltins(ctx, service, { terminalTitle: () => terminalTitle }),
     'dsh-better-sidebar: register built-in tabs and viewers',
   )
-  // A failure anywhere in the client lifecycle must never take the app down
-  // silently: log with the plugin prefix and pin a visible diagnostic strip
-  // to the page so a blank panel is never the only symptom. This strip is
-  // the last-resort reporter (no CSS module is reachable from here), so its
-  // colors go through skin token chains with the previous hexes as the
-  // chain tails — worst case (no skin tokens on the page) it renders
-  // byte-identical to the old hardcoded bar, and any `--dsw-alias-*` skin
-  // re-themes it (guide §12: no hardcoded colors).
-  const fail = (phase: string, error: unknown): void => {
-    console.error(`[dsh-better-sidebar] ${phase} error:`, error)
-    try {
-      const bar = document.createElement('div')
-      bar.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:2147483000;max-width:70vw;padding:8px 12px;'
-        + 'font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;'
-        + 'color:var(--dsw-alias-state-error-primary,#f2a1a1);'
-        + 'background:var(--dsw-alias-bg-layer-3,var(--dsw-alias-bg-base,#1b1b22));'
-        + 'border:1px solid var(--dsw-alias-state-error-primary,#f2a1a1);border-radius:8px;white-space:pre-wrap'
-      bar.textContent = `[dsh-better-sidebar] ${phase} error: ${error instanceof Error ? error.message : String(error)}`
-      document.body.appendChild(bar)
-    } catch {
-      // Nothing left to report with.
-    }
-  }
   try {
     // rc.8+ exposes the client module system as the `ctx.modules` service;
     // the chunk loader needs it to resolve its externals, so inject it
@@ -353,18 +352,6 @@ export function apply(ctx: Context): void {
         unmount()
       }
     }, 'dsh-better-sidebar: sidebar mount')
-
-    ctx.effect(
-      () => {
-        try {
-          return registerTurnTailInterception(ctx, sidebarStore)
-        } catch (error) {
-          fail('interception', error)
-          return () => {}
-        }
-      },
-      'dsh-better-sidebar: turn-tail interception',
-    )
 
     ctx.effect(
       () => {

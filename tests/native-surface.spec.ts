@@ -297,6 +297,21 @@ describe('registerNativeSurface lifecycle (service-driven registration)', () => 
     expect(browserGuide?.[0]?.description).toBeUndefined()
     expect('description' in (browserGuide?.[0] ?? {})).toBe(false)
     expect(browserGuide?.[0]?.title?.()).toBe('Browser')
+    // DSH 0.1.6-alpha.2 made `SidebarRightGuideEntry.id` REQUIRED and unique
+    // per provider: a registration whose guide entries carry no id collides
+    // on `undefined` and `SidebarRightTabRegistry.register` throws
+    // `duplicate guide entry id`, which cordis swallows — leaving the whole
+    // native surface silently empty (no guide row, no plugin tab types).
+    const guideIds: string[] = []
+    for (const entry of registered) {
+      const guide = entry.guide as Array<{ id?: unknown }> | undefined
+      for (const item of guide ?? []) {
+        expect(typeof item.id, `guide id of ${entry.kind}`).toBe('string')
+        guideIds.push(item.id as string)
+      }
+    }
+    expect(guideIds.length).toBeGreaterThan(0)
+    expect(new Set(guideIds).size).toBe(guideIds.length)
 
     dispose()
   })

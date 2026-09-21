@@ -39,11 +39,12 @@ interface NativeTabRegistry {
   register(definition: {
     id: string
     kind: string
+    multiple?: boolean
     patterns?: readonly string[]
     priority?: 'extension' | 'builtin' | 'fallback'
     canOpen?: (address: string) => boolean
     title: (address: string) => string
-    guide?: readonly { order: number; title: () => string; description?: () => string; icon?: unknown }[]
+    guide?: readonly { id: string; order: number; title: () => string; description?: () => string; icon?: unknown }[]
   }): () => void
 }
 
@@ -115,6 +116,18 @@ export interface NativeSurfaceDeps {
   readonly service: BetterSidebarService
   /** The shared native tab record registry (the surface writes it too). */
   readonly records: NativeTabRecords
+  /**
+   * Report a tab-type registration failure (phase label + cause).
+   *
+   * `ctx.inject`'s callback body and the registry's own subscriber callbacks
+   * run OUTSIDE this module's control flow, so a throw from
+   * `sidebarRightTabs.register` is swallowed by cordis and the whole native
+   * surface stays empty with no symptom beyond a missing guide. Reporting
+   * through the client's diagnostic strip (index.tsx `fail`) turns a silent
+   * contract break into a visible one — the failure mode observed when DSH
+   * 0.1.6-alpha.2 made `SidebarRightGuideEntry.id` required.
+   */
+  readonly reportFailure?: (phase: string, error: unknown) => void
 }
 
 /**
@@ -124,7 +137,7 @@ export interface NativeSurfaceDeps {
  * @returns a disposer unregistering everything.
  */
 export function registerNativeSurface(deps: NativeSurfaceDeps): () => void {
-  const { ctx, store, service, records } = deps
+  const { ctx, store, service, records, reportFailure } = deps
   // Wait for the tab-type REGISTRY (a service), not for the slot declaration:
   // the native seat declares `sidebar.right.pane.tab` BEFORE it provides
   // `sidebarRightTabs`, so a declaration-triggered registration reads the
@@ -194,6 +207,11 @@ export function registerNativeSurface(deps: NativeSurfaceDeps): () => void {
           ? {}
           : {
             guide: [{
+              // DSH 0.1.6-alpha.2 made `id` REQUIRED and unique per provider
+              // (a duplicate throws `sidebarRight: duplicate guide entry id`).
+              // The descriptor id is already unique per implementation, which
+              // is exactly the uniqueness the registry asks for.
+              id: descriptor.id,
               order: descriptor.order ?? 100,
               title: () => titleOf(descriptor),
               ...guideDescriptionOf(descriptor),
@@ -221,6 +239,10 @@ export function registerNativeSurface(deps: NativeSurfaceDeps): () => void {
         priority: 'extension',
         title: () => t('files'),
         guide: [{
+          // Required and unique per provider since DSH 0.1.6-alpha.2. This
+          // takeover is its own implementation id, so its guide row takes
+          // that same id.
+          id: 'files',
           order: 10,
           title: () => t('files'),
           // The takeover IS the editor descriptor's page, so it carries the
@@ -251,14 +273,24 @@ export function registerNativeSurface(deps: NativeSurfaceDeps): () => void {
       }
       for (const [descriptorId, create] of wanted) {
         if (live.has(descriptorId)) continue
-        live.set(descriptorId, { dispose: create() })
+        // One descriptor must not take the rest of the surface down with it:
+        // report and continue so the remaining types still register.
+        try {
+          live.set(descriptorId, { dispose: create() })
+        } catch (error) {
+          reportFailure?.(`register ${descriptorId}`, error)
+        }
       }
       // The built-in files kind follows the editor type's switch: with the
       // editor disabled the plugin has no explorer to put there.
       const wantsFiles = service.isTabEnabled(EDITOR_KIND)
       const hasFiles = live.has(FILES_KIND)
       if (wantsFiles && !hasFiles) {
-        live.set(FILES_KIND, { dispose: registerFilesKind(service.getTab(EDITOR_KIND)) })
+        try {
+          live.set(FILES_KIND, { dispose: registerFilesKind(service.getTab(EDITOR_KIND)) })
+        } catch (error) {
+          reportFailure?.(`register ${FILES_KIND}`, error)
+        }
       }
       if (!wantsFiles && hasFiles) {
         live.get(FILES_KIND)?.dispose()

@@ -25,7 +25,7 @@ import { FileTree } from './FileTree.tsx'
 import { IconUploadOutline16 } from './icons.tsx'
 import type { OpenWithTarget } from './open-with.ts'
 import { t } from './locales.ts'
-import { resolveSidebarPath } from './produced-files.ts'
+import { resolveSidebarPath } from './paths.ts'
 import { UploadOverlay } from './UploadOverlay.tsx'
 import {
   summarizeResults, uploadHintText, uploadItemsFromFiles, uploadToDir,

@@ -16,7 +16,7 @@ import type { SidebarDiffRef } from './state.ts'
 import { DiffFiles } from './diff/DiffFiles.tsx'
 import { displayPath, foldRowsFromContents, type DiffFile, type DiffRow, type FoldSegment } from './diff/rows.ts'
 import { t } from './locales.ts'
-import { resolveSidebarPath } from './produced-files.ts'
+import { resolveSidebarPath } from './paths.ts'
 import css from './sidebar.module.css'
 
 /** The loaded diff surface (untracked content rendered as a full addition). */

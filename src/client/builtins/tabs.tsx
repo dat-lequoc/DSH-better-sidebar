@@ -15,7 +15,7 @@ import {
 } from './tab-icons.tsx'
 import { allLeaves, isAgentTabId, type SidebarState } from '../state.ts'
 import { t } from '../locales.ts'
-import { openSidebarFile } from '../intercept.tsx'
+import { openSidebarFile } from '../sidebar-file.ts'
 import { EditorHost } from '../EditorHost.tsx'
 import { OpenWithSettings } from '../open-with-settings.tsx'
 import { lazyChunkComponent } from '../lazy-chunk.tsx'
@@ -166,7 +166,7 @@ export function builtinTabs(ctx: Context, options: BuiltinTabOptions = {}): read
           scope={scope}
           tab={tab}
           visible={visible}
-          onOpenFile={(path) => { openSidebarFile(ctx, store, scope.sessionId, path) }}
+          onOpenFile={(path) => { openSidebarFile(ctx, scope.sessionId, path) }}
           onOpenDiff={onOpenDiff}
         />
       ),

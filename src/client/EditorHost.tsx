@@ -33,13 +33,13 @@ import { FenceErrorNotice } from './FenceErrorNotice.tsx'
 import { planFirstMatch, planFsReadOutcome, type EditorLoadAction } from './editor-load.ts'
 import { baseName } from './FileTree.tsx'
 import { createFrameBatcher } from './frame-batcher.ts'
-import { openSidebarFile } from './intercept.tsx'
+import { openSidebarFile } from './sidebar-file.ts'
 import { openWithSshActive, openWithUrl, parseOpenWithConfig, resolveOpenWithTargets } from './open-with.ts'
 import { updatePluginSettings } from './plugin-settings.ts'
 import { TreePanel } from './TreePanel.tsx'
 import { t } from './locales.ts'
 import { relativeTo } from './paths.ts'
-import { resolveSidebarPath } from './produced-files.ts'
+import { resolveSidebarPath } from './paths.ts'
 import { closePathTabs, retargetPathTabs } from './tree-mutations.ts'
 import type { EditorToolbarControls, EditorToolbarState, FileViewerDescriptor } from './service.ts'
 import { firstLeaf, insertLeafAt, leafWithTab, mintTabId, type SidebarStore, type SidebarTab } from './state.ts'
@@ -162,13 +162,13 @@ export function EditorHost(props: {
     if (inPlace) {
       ctx.get('betterSidebar')?.updateTab(tab.id, { path: absolute, title: baseName(absolute) })
     } else {
-      openSidebarFile(ctx, store, scope.sessionId, absolute)
+      openSidebarFile(ctx, scope.sessionId, absolute)
     }
   }
 
   /** The context menu's explicit "new tab" escape (per-path dedupe). */
   const openFileNewTab = (absolute: string): void => {
-    openSidebarFile(ctx, store, scope.sessionId, absolute)
+    openSidebarFile(ctx, scope.sessionId, absolute)
   }
 
   /**
