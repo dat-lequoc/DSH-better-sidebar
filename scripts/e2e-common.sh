@@ -40,11 +40,16 @@ e2e_require_cmd() {
 # ── DSH_CMD 解析 ─────────────────────────────────────────────────────────────
 # PATH 上的 dsh 优先，否则 npx 拉官方包（同 scripts/install.sh）。DSH_CMD
 # 缺省值（`dsh`）由调用方从环境变量取好传入。
+#
+# 回退的 npx 版本是显式钉死的：不钉就会解析 npm 的 `latest` dist-tag，而
+# 0.1.6 线目前只有预发布（`latest` 仍是 0.1.5-rc.2），冒烟会静静地挂到一
+# 个插件已不支持的宿主上。钉版必须与 package.json 的 peer 下限同步。
+DSH_NPX_SPEC="${DSH_NPX_SPEC:-@deepseek-ai/dsh@0.1.6-alpha.2}"
 e2e_resolve_dsh_cmd() {
   if ! command -v "$DSH_CMD" >/dev/null 2>&1; then
     if command -v npx >/dev/null 2>&1; then
-      say "PATH 上无 ${DSH_CMD}，回退 npx -y --package @deepseek-ai/dsh"
-      DSH_CMD="npx -y --package @deepseek-ai/dsh dsh"
+      say "PATH 上无 ${DSH_CMD}，回退 npx -y --package ${DSH_NPX_SPEC}"
+      DSH_CMD="npx -y --package ${DSH_NPX_SPEC} dsh"
     else
       die "未找到 $DSH_CMD 或 npx；请先安装 DSH CLI（npm i -g @deepseek-ai/dsh）或用 DSH_CMD 指定"
     fi

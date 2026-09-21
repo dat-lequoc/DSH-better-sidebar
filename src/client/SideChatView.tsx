@@ -36,7 +36,7 @@ import {
   IconNewChatOutline16,
   IconPlusOutline16,
   IconSearchOutline16,
-  IconSendOutline16,
+  IconSendOutline14,
   IconSparkle16,
   IconStopFill16,
   MarkdownText,
@@ -354,6 +354,9 @@ export function SideChatView(props: {
         ...shared,
         signal: (signal: string) => t('sideChatBlockSignal', { signal }),
         exitCode: (exitCode: number) => t('sideChatBlockExitCode', { code: exitCode }),
+        // DSH 0.1.6-alpha.2 added this pill text: a settle the view cannot
+        // name (killed by an unknown signal, or never started).
+        noExitCode: t('sideChatBlockNoExitCode'),
         running: t('sideChatBlockRunning'),
         failed: t('sideChatBlockFailed'),
         done: t('sideChatBlockDone'),
@@ -739,7 +742,6 @@ export function SideChatView(props: {
         <ConnectionIndicator
           state={connectionState}
           disconnectedLabel={t('sideChatConnDisconnected')}
-          reconnectLabel={t('sideChatConnReconnect')}
           connectingLabel={t('sideChatConnConnecting')}
           recoveredLabel={t('sideChatConnRecovered')}
           reconnectActionLabel={t('sideChatConnReconnectAction')}
@@ -802,7 +804,7 @@ export function SideChatView(props: {
               disabled={composer.trim() === '' || busy !== null}
               title={t('sideChatSend')}
             >
-              <IconSendOutline16 />
+              <IconSendOutline14 size={16} />
             </button>
           )}
         </div>
