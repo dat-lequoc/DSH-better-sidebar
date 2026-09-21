@@ -74,7 +74,7 @@ FIXTURE_TGZ="$(ls "$TMP_DIR"/*.tgz 2>/dev/null | head -1 || true)"
 [ -n "$FIXTURE_TGZ" ] || die "fixture 打包失败"
 
 # ── 引导 scratch profile（web 模板）────────────────────────────────────────
-# 三件套 heredoc 及 pnpm-workspace 的 allowBuilds / minimumReleaseAgeExclude
+# 三件套 heredoc 及 pnpm-workspace 的 minimumReleaseAgeExclude
 # 理由见 e2e-common.sh 的 e2e_write_profile。
 PROFILE_DIR="$DSH_HOME/profiles/web"
 e2e_write_profile "$PROFILE_DIR"

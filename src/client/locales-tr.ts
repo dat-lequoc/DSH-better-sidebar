@@ -295,7 +295,6 @@ export const tr: Record<string, string> = {
   browserBlockedScheme: 'Engellendi: yalnızca http/https URL’lerine izin verilir',
   browserBlockedLoopback: 'Engellendi: yerel ve iç adresler burada gezilemez',
   browserInvalid: 'Geçersiz URL',
-  browserNoSandboxWarning: 'Kum kapalı: geçerli sayfa tam arayüz ayrıcalıklarıyla çalışır (ayarlardan yeniden etkinleştirin)',
   htmlNoSandboxWarning: 'Kum kapalı: bu HTML tam arayüz ayrıcalıklarıyla çalışır (ayarlardan yeniden etkinleştirin)',
   sandboxStatusOn: 'Kum modu: açık · sayfalar arayüzün verilerine veya yerel dosyalara erişemez; oturum açmalar ve üçüncü taraf çerezler çalışmayabilir',
   sandboxUnlock: 'Geçici olarak devre dışı bırak (güvenli değil)',

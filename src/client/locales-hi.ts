@@ -295,7 +295,6 @@ export const hi: Record<string, string> = {
   browserBlockedScheme: 'रोका गया: केवल http/https URL अनुमत हैं',
   browserBlockedLoopback: 'रोका गया: स्थानीय और आंतरिक पते यहाँ ब्राउज़ नहीं किए जा सकते',
   browserInvalid: 'अमान्य URL',
-  browserNoSandboxWarning: 'सैंडबॉक्स बंद: वर्तमान पृष्ठ GUI विशेषाधिकार के साथ चलता है (सेटिंग्स में पुनः सक्षम करें)',
   htmlNoSandboxWarning: 'सैंडबॉक्स बंद: यह HTML GUI विशेषाधिकार के साथ चलता है (सेटिंग्स में पुनः सक्षम करें)',
   sandboxStatusOn: 'सैंडबॉक्स मोड: चालू · पृष्ठ GUI के डेटा या स्थानीय फ़ाइलों तक नहीं पहुँच सकते; लॉगिन और थर्ड-पार्टी कुकीज़ काम नहीं कर सकतीं',
   sandboxUnlock: 'अस्थायी रूप से अक्षम (असुरक्षित)',

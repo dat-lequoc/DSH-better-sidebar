@@ -281,7 +281,6 @@ export const de: Record<string, string> = {
   browserBlockedScheme: 'Blockiert: nur http/https-Links sind erlaubt',
   browserBlockedLoopback: 'Blockiert: lokale und interne Adressen können hier nicht aufgerufen werden',
   browserInvalid: 'Ungültige URL',
-  browserNoSandboxWarning: 'Sandbox aus: Die aktuelle Seite läuft mit vollen Benutzeroberflächen-Rechten (in den Einstellungen wieder aktivierbar)',
   htmlNoSandboxWarning: 'Sandbox aus: Dieses HTML läuft mit vollen Benutzeroberflächen-Rechten (in den Einstellungen wieder aktivierbar)',
   sandboxStatusOn: 'Sandbox-Modus: aktiviert · Seiten können weder auf die Daten der Oberfläche noch auf lokale Dateien zugreifen; Anmeldungen und Drittanbieter-Cookies funktionieren möglicherweise nicht',
   sandboxUnlock: 'Vorübergehend deaktivieren (unsicher)',

@@ -278,7 +278,6 @@ export const sv: Record<string, string> = {
   browserBlockedScheme: 'Blockerat: endast http/https-URL:er är tillåtna',
   browserBlockedLoopback: 'Blockerat: lokala och interna adresser kan inte surfas här',
   browserInvalid: 'Ogiltig URL',
-  browserNoSandboxWarning: 'Sandlåda av: den aktuella sidan kör med fullständiga GUI-privilegier (återaktivera i inställningarna)',
   htmlNoSandboxWarning: 'Sandlåda av: denna HTML kör med fullständiga GUI-privilegier (återaktivera i inställningarna)',
   sandboxStatusOn: 'Sandlådeläge: på · sidor kan inte komma åt GUI:ts data eller lokala filer; inloggningar och tredjepartscookies kanske inte fungerar',
   sandboxUnlock: 'Avaktivera tillfälligt (osäkert)',

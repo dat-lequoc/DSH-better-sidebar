@@ -295,7 +295,6 @@ export const ja: Record<string, string> = {
   browserBlockedScheme: 'ブロック：http/https リンクのみ許可',
   browserBlockedLoopback: 'ブロック：ローカルや内部アドレスはブラウズできません',
   browserInvalid: '無効な URL',
-  browserNoSandboxWarning: 'サンドボックスオフ：現在のページは GUI と同一オリジンで、完全な会話権限を持ちます（設定で復元可）',
   htmlNoSandboxWarning: 'サンドボックスオフ：この HTML は GUI と同一オリジンで、会話ファイルや内部 API を読み取れます（設定で復元可）',
   sandboxStatusOn: 'サンドボックスモード：オン ・ ページは GUI のデータやローカルファイルにアクセス不可。ログイン状態とサードパーティ Cookie は利用できない場合あり',
   sandboxUnlock: '一時的に解除（非安全）',

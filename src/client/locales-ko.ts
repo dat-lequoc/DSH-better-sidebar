@@ -287,7 +287,6 @@ export const ko: Record<string, string> = {
   browserBlockedScheme: '차단됨: http/https 링크만 지원합니다',
   browserBlockedLoopback: '차단됨: 브라우저에서 로컬 또는 내부 주소에 접근할 수 없습니다',
   browserInvalid: '잘못된 URL',
-  browserNoSandboxWarning: '샌드박스가 꺼짐: 현재 페이지가 인터페이스와 동일 출처로 전체 세션 권한을 가집니다(설정에서 복원 가능)',
   htmlNoSandboxWarning: '샌드박스가 꺼짐: 이 HTML이 인터페이스와 동일 출처로 세션 파일과 내부 인터페이스를 읽을 수 있습니다(설정에서 복원 가능)',
   sandboxStatusOn: '샌드박스 모드: 사용 중 · 페이지가 인터페이스 데이터와 로컬 파일에 접근할 수 없으며, 로그인 상태와 타사 Cookie는 동작하지 않을 수 있습니다',
   sandboxUnlock: '임시 해제(안전하지 않음)',

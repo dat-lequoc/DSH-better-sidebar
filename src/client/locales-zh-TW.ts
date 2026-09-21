@@ -310,7 +310,6 @@ export const zhTW: Record<string, string> = {
   browserBlockedScheme: '已封鎖：僅支援 http/https 連結',
   browserBlockedLoopback: '已封鎖：不允許在瀏覽器中存取本機或內部位址',
   browserInvalid: '無效的網址',
-  browserNoSandboxWarning: '沙箱已關閉：目前頁面與介面同源，擁有完整工作階段權限（可在設定中恢復）',
   htmlNoSandboxWarning: '沙箱已關閉：此 HTML 與介面同源，可讀取工作階段檔案與內部介面（可在設定中恢復）',
   sandboxStatusOn: '沙箱模式：已啟用 · 頁面無法存取介面資料與本地檔案，登入態與第三方 Cookie 可能不可用',
   sandboxUnlock: '臨時解鎖（不安全）',

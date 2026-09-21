@@ -46,6 +46,7 @@ e2e_require_cmd() {
 # 个插件已不支持的宿主上。钉版必须与 package.json 的 peer 下限同步。
 DSH_NPX_SPEC="${DSH_NPX_SPEC:-@deepseek-ai/dsh@0.1.6-alpha.2}"
 e2e_resolve_dsh_cmd() {
+  local explicit="${DSH_CMD}"
   if ! command -v "$DSH_CMD" >/dev/null 2>&1; then
     if command -v npx >/dev/null 2>&1; then
       say "PATH 上无 ${DSH_CMD}，回退 npx -y --package ${DSH_NPX_SPEC}"
@@ -54,6 +55,26 @@ e2e_resolve_dsh_cmd() {
       die "未找到 $DSH_CMD 或 npx；请先安装 DSH CLI（npm i -g @deepseek-ai/dsh）或用 DSH_CMD 指定"
     fi
   fi
+  e2e_check_dsh_version "$explicit"
+}
+
+# 解析出的 CLI 版本必须与 peer 下限同一条支持线。这不是洁癖：宿主只比
+# 0.1.6-alpha.2 早一个预发布（alpha.1）时，`dsh plugin add` 的 bundle 协调
+# 会静默不写 `dsh.profile.bundles`——CLI 退出码仍是 0，lane 却挂在「挂载未
+# 注册」上，排查方向完全被带偏（本机 PATH 上的 dsh 恰好就是 alpha.1，实测）。
+# DSH_CMD 显式给出时不拦（调用方明确知道自己在挂什么），只告警。
+e2e_check_dsh_version() {
+  local explicit="$1" actual expected
+  expected="${DSH_EXPECT_VERSION:-0.1.6-alpha.2}"
+  # `dsh --version` 冷启动要走 npx，给足预算；拿不到版本就只告警。
+  actual="$($DSH_CMD --version 2>/dev/null | tr -d '[:space:]' | head -c 64 || true)"
+  case "$actual" in
+    "$expected"|"$expected"*) return 0 ;;
+  esac
+  if [ "$explicit" = "dsh" ] && [ -n "$actual" ]; then
+    die "PATH 上的 dsh 是 ${actual}，本仓库的基线是 ${expected}（peer 下限同一支持线）。请改用 DSH_CMD='npx -y --package @deepseek-ai/dsh@${expected} dsh'，或安装该版本。"
+  fi
+  warn "DSH_CMD 版本为 ${actual:-未知}，基线是 ${expected}——真机证据落在非基线宿主上。"
 }
 
 # ── tarball 解析 ─────────────────────────────────────────────────────────────
@@ -108,10 +129,9 @@ e2e_cleanup() {
 
 # ── scratch profile 三件套 ───────────────────────────────────────────────────
 # 引导 scratch profile（web 模板，镜像 dsh initProfile）；先写
-# pnpm-workspace.yaml 的 allowBuilds / minimumReleaseAgeExclude，避免 pnpm 11
-# strict-dep-builds 拦截 node-pty/protobufjs 或拒绝 <24h 新版本——同 install.sh。
-# @deepseek-ai/* 通配与仓库根 pnpm-workspace.yaml 同策：钉的 DSH alpha 常在
-# 发布后 24h 内跑 lane，没有豁免会被 minimumReleaseAge 直接拒装。
+# pnpm-workspace.yaml 的 minimumReleaseAgeExclude，避免 pnpm 11 拒绝 <24h 新版本
+# ——同 install.sh。@deepseek-ai/* 通配与仓库根 pnpm-workspace.yaml 同策：钉的
+# DSH alpha 常在发布后 24h 内跑 lane，没有豁免会被 minimumReleaseAge 直接拒装。
 e2e_write_profile() {
   mkdir -p "$1"
   cat > "$1/package.json" <<EOF
@@ -133,10 +153,6 @@ packages:
 
 nodeLinker: hoisted
 autoInstallPeers: false
-
-allowBuilds:
-  node-pty: true
-  protobufjs: true
 
 minimumReleaseAgeExclude:
   - dsh-better-sidebar

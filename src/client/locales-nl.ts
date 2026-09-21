@@ -293,7 +293,6 @@ export const nl: Record<string, string> = {
   browserBlockedScheme: 'Geblokkeerd: alleen http/https-URL\'s zijn toegestaan',
   browserBlockedLoopback: 'Geblokkeerd: lokale en interne adressen kunnen hier niet worden bezocht',
   browserInvalid: 'Ongeldige URL',
-  browserNoSandboxWarning: 'Sandbox uit: de huidige pagina draait met volledige GUI-privileges (herinschakelen in instellingen)',
   htmlNoSandboxWarning: 'Sandbox uit: deze HTML draait met volledige GUI-privileges (herinschakelen in instellingen)',
   sandboxStatusOn: 'Sandbox-modus: aan · pagina\'s kunnen de GUI-gegevens of lokale bestanden niet benaderen; logins en third-party cookies werken mogelijk niet',
   sandboxUnlock: 'Tijdelijk uitschakelen (onveilig)',
