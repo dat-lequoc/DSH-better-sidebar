@@ -13,8 +13,8 @@
  *   hardcode: single-instance (`() => type`), per-path (`tab => tab.path`),
  *   and per-id (`tab => tab.id` for diff tabs whose id is change-derived).
  *   `single: true` is sugar for `dedupeKey: () => id`.
- * - `createTab` lets a descriptor own tab instantiation (the terminal
- *   builtin uses it to mint `terminal:<n>` ids and bump `nextTerminal`).
+ * - `createTab` lets a descriptor own tab instantiation (the side chat
+ *   builtin uses it to mint one `sidechat:<threadId>` tab per thread).
  * - `matchFileViewer` walks descriptors in priority order (desc, stable):
  *   per descriptor it tries `detect` first (when `head` bytes are given),
  *   then `exts`; `exts: []` is a catch-all that matches any path.
@@ -201,8 +201,8 @@ export interface TabDescriptor {
   dedupeKey?: (tab: SidebarTab) => string | undefined
   /**
    * Custom tab creation (minting the `SidebarTab` and any state patches).
-   * Return `null` to refuse creation. The terminal builtin uses this to
-   * mint `terminal:<n>` ids and bump `nextTerminal`.
+   * Return `null` to refuse creation. The side chat builtin uses this to mint
+   * one tab per thread and to park a pending thread id in `meta`.
    * When omitted, a default `{ id, type, title }` tab is created.
    */
   createTab?: (state: SidebarState) => { tab: SidebarTab; patch?: Partial<SidebarState> } | null
@@ -969,7 +969,7 @@ export function createBetterSidebarService(store: SidebarStore): BetterSidebarSe
     // native sidebar owns the right column).
     const land = openTabInBottomPane
     const reducer = (state: SidebarState): SidebarState => {
-      // Let the descriptor mint the tab (terminal's nextTerminal bump, etc.).
+      // Let the descriptor mint the tab (and any state patch it owns).
       let tab: SidebarTab
       let next: SidebarState
       if (descriptor.createTab !== undefined) {

@@ -13,11 +13,12 @@
  *     plugin's `[data-dsh-better-sidebar]` host mount;
  *  3. asserts the plugin's crash markers never appear (no RenderBoundary /
  *     fail() strips, no `pageerror`, no plugin-prefixed console errors);
- *  4. expands DSH's native right Sidebar, sweeps every built-in tab type
- *     through its guide page (Files / Changes / Tasks / Terminal / Browser) —
- *     including the lazily-fetched terminal chunk — and then opens seeded
- *     files through the Files window's tree (separate mode: each file opens
- *     its own new tab, the seeded home "Files" tab stays the explorer),
+ *  4. expands DSH's native right Sidebar, sweeps every tab type the COMPOSED
+ *     guide offers (the plugin's own Files / Changes / Tasks / Side chat, plus
+ *     whatever the host contributes — its own terminal and browser tab types
+ *     when those packages are mounted) through its guide page, and then opens
+ *     seeded files through the Files window's tree (separate mode: each file
+ *     opens its own new tab, the seeded home "Files" tab stays the explorer),
  *     while response waits armed before goto prove the lazily-fetched editor
  *     chunk (client-editor.js) and the mermaid chunk (client-mermaid.js,
  *     rendered SVG diagram + zoom modal) loaded.
@@ -56,8 +57,18 @@ const SEEDED_README_FILE = 'readme-style.md'
  */
 const CRASH_STRIP_PATTERNS = [/^dsh-better-sidebar:/, /^\[dsh-better-sidebar\]/]
 
-/** Built-in tab titles the sweep drives (en-US copy; follows DSH locale). */
-const NATIVE_TABS = ['files', 'git', 'subagent', 'sidechat', 'terminal', 'browser']
+/**
+ * The tab types the plugin itself contributes, plus the host-owned kinds the
+ * guide is asserted to still offer.
+ *
+ * `terminal` and `browser` are DSH 0.1.6's own right-Sidebar types: this
+ * plugin deliberately ships neither (it used to own both), so the guide must
+ * show exactly ONE entry for each when the host mounts those packages — a
+ * second entry would mean the plugin is shadowing the host again.
+ */
+const PLUGIN_TABS = ['files', 'git', 'subagent', 'sidechat'] as const
+const HOST_OWNED_TABS = ['terminal', 'browser'] as const
+const NATIVE_TABS: readonly string[] = [...PLUGIN_TABS, ...HOST_OWNED_TABS]
 
 let api: APIRequestContext
 /** The seeded session id (captured by seedSession; the Side Chat smoke's parent). */
@@ -288,7 +299,7 @@ test('plugin mounts into the DSH shell and survives a built-in tab sweep', async
   }
 
   // Sweep every type through the guide. Each open mounts a real viewer (the
-  // terminal fetches its lazy chunk); a failure anywhere surfaces as a
+  // editor and mermaid chunks arrive lazily); a failure anywhere surfaces as a
   // pageerror or a crash strip, both of which the next assertion sees. A pane
   // holds one guide tab, so re-seed it through the strip's add control before
   // every pick.
@@ -361,7 +372,7 @@ test('plugin mounts into the DSH shell and survives a built-in tab sweep', async
   const settingsGetBody = (await settingsGet.json()) as { value?: { tabsEnabled?: Record<string, boolean> } }
   const originalTabsEnabled = settingsGetBody.value?.tabsEnabled ?? {}
   /** The types this check switches off (leaving three entries, i.e. ≤4). */
-  const shrunken = ['git', 'subagent', 'terminal'] as const
+  const shrunken = ['git', 'subagent'] as const
   try {
     // Send the FULL map back (the route's patch is key-wise merged, so a
     // full map is correct whether the host merges or replaces).

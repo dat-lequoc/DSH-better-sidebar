@@ -1,20 +1,20 @@
 /**
  * Host-feed subscriptions (extracted from Sidebar.tsx, behavior identical):
- * the WebSocket pushes (agent terminals, agent opens) and the session-list
- * driven auto-activation triggers (subagent, background jobs, topology
+ * the WebSocket push (agent opens) and the session-list driven
+ * auto-activation triggers (subagent, background jobs, topology
  * jump-back). All of it reacts to the host's live feeds for the CURRENT
  * session; the sidebar shell only consumes the returned jump-back ref.
  */
 import { useEffect, useRef } from 'react'
 import type { Context, SidebarSessionList } from '../../context-types.ts'
-import { mirrorAgentWaits, reconcileAgentTerminals, type SidebarStore } from '../state.ts'
+import type { SidebarStore } from '../state.ts'
 import { isNarrowWidth } from '../breakpoints.ts'
 import { detectNewDirectSubagent } from '../subagent-detect.ts'
 import { detectNewJob } from '../subagent-jobs.ts'
 import { t } from '../locales.ts'
 
-/** How many consecutive reconnect failures stop the agent-terminals push loop
- * (mirror of the terminal view's own cap; the loop restarts on session switch). */
+/** How many consecutive reconnect failures stop the agent-opens push loop
+ * (the loop restarts on session switch). */
 const FAILURE_LIMIT = 3
 
 /**
@@ -85,74 +85,12 @@ export function useHostFeeds(feeds: {
   const { ctx, store, sessionList, sessionId } = feeds
 
   /**
-   * Agent terminals push: subscribe to the host's live list of agent-owned
-   * terminals for this session (created by the model through the
-   * `terminal_create` tool). The host pushes a JSON array on every
-   * create / close / exit; the sidebar reconciles the list into tabs
-   * (id `agent:<uuid>`, title from the agent). A disconnected socket
-   * retries with a short backoff so a refresh or transient drop reattaches
-   * the same shell without losing the agent's work — capped like the
-   * terminal view's own reconnect loop, so a refused endpoint never spins
-   * forever (the next session switch restarts the loop).
-   * While the terminal tab type is disabled in settings, pushes add / remove
-   * no tabs — but the authoritative wait map is STILL mirrored (see the
-   * branch below); re-enabling makes the next push converge on both.
-   */
-  useEffect(() => {
-    if (sessionId === undefined) return
-    let socket: WebSocket | null = null
-    let retry: number | undefined
-    let closed = false
-    let failures = 0
-    const connect = (): void => {
-      if (closed) return
-      const url = new URL('/sidebar/ws/agent-terminals', location.origin)
-      url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
-      url.search = new URLSearchParams({ sessionId }).toString()
-      socket = new WebSocket(url.toString())
-      socket.onmessage = (event) => {
-        if (typeof event.data !== 'string') return
-        try {
-          const list = JSON.parse(event.data) as Array<{ uuid: string; title: string; command: string; exited: boolean; waiting?: { needle: string; since: number } | null }>
-          if (!Array.isArray(list)) return
-          store.reduce(s => ctx.get('betterSidebar')?.isTabEnabled('terminal') === false
-            // Terminal tabs are disabled: skip tab add/remove reconciliation,
-            // but STILL mirror the authoritative wait map — a wait resolving
-            // during the disabled window must clear its banner state, or a
-            // re-enabled terminal keeps a stale banner until the next
-            // unrelated push.
-            ? mirrorAgentWaits(s, list)
-            : reconcileAgentTerminals(s, list))
-        } catch {
-          // Malformed push: ignore (the next push will reconcile).
-        }
-      }
-      socket.onclose = () => {
-        if (closed) return
-        failures += 1
-        if (failures >= FAILURE_LIMIT) {
-          console.error('[dsh-better-sidebar] agent-terminals connection failed; stopping reconnect loop', sessionId)
-          return
-        }
-        retry = window.setTimeout(connect, 2000)
-      }
-      socket.onerror = () => { socket?.close() }
-    }
-    connect()
-    return () => {
-      closed = true
-      window.clearTimeout(retry)
-      socket?.close()
-    }
-  }, [sessionId, ctx, store])
-
-  /**
    * Agent opens push: subscribe to the host's `sidebar_open` requests for
    * this session (the model actively opens a file / folder / HTTP(S) page).
    * The host pushes one JSON request per open; the sidebar routes it to the
    * matching built-in tab: a file opens in the editor (per-path dedupe), a
    * folder opens a file window whose tree is rooted at the folder
-   * (`meta.dir`), and a URL opens in the browser tab. A disconnected socket
+   * (`meta.dir`), and a URL opens in DSH's own browser tab type. A disconnected socket
    * retries with a short backoff (mirror of the agent-terminals loop): the
    * host queue keeps undelivered requests and replays them on the first
    * attach, so a refresh or a session switch lands the opens the model
@@ -183,7 +121,14 @@ export function useHostFeeds(feeds: {
           const scope = { sessionId }
           const title = typeof request.title === 'string' && request.title !== '' ? request.title : undefined
           if (request.kind === 'url') {
-            ctx.get('betterSidebar')?.openTab({ type: 'browser', url: request.target, title }, scope)
+            // DSH's own browser tab type (absent from the plugin's registry
+            // since 0.20.0); an unregistered kind throws, so the agent-open
+            // path degrades to doing nothing rather than breaking the push.
+            try {
+              ctx.get('sidebarRight')?.openTab('browser', { params: { url: request.target } })
+            } catch {
+              // Host without a browser tab type: nothing to open into.
+            }
           } else if (request.kind === 'folder') {
             ctx.get('betterSidebar')?.openTab({
               type: 'editor',

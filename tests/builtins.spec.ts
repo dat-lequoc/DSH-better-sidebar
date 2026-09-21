@@ -1,5 +1,5 @@
 /**
- * Built-in registration tests: the plugin registers 7 tabs and 6 file
+ * Built-in registration tests: the plugin registers 5 tabs and 6 file
  * viewers through the same service external plugins use (dogfooding);
  * the catch-all `code` viewer, the NUL-sniffing `binary-download` viewer,
  * and the html sandbox settings pin the registry's behavior. (Office
@@ -9,31 +9,28 @@
  */
 import { describe, expect, it } from 'vitest'
 import type { ReactElement } from 'react'
-import { VscCommentDiscussion, VscGitCommit, VscGlobe, VscLayers, VscTerminal } from 'react-icons/vsc'
+import { VscCommentDiscussion, VscGitCommit, VscLayers } from 'react-icons/vsc'
 // First import: browser globals before the xterm-carrying builtin graph loads.
 import './browser-globals.ts'
 
 import type { Context } from '../src/context-types.ts'
 import { createBetterSidebarService } from '../src/client/service.ts'
 import { createSidebarStore } from '../src/client/state.ts'
-import { allLeaves } from '../src/client/state.ts'
 import { registerBuiltins } from '../src/client/builtins/index.ts'
-import type { BuiltinTabOptions } from '../src/client/builtins/tabs.tsx'
 import { parkSidechatReopen } from '../src/client/SideChatView.tsx'
-import { t } from '../src/client/locales.ts'
 
-function setup(options: BuiltinTabOptions = {}): { service: ReturnType<typeof createBetterSidebarService>; store: ReturnType<typeof createSidebarStore>; dispose: () => void } {
+function setup(): { service: ReturnType<typeof createBetterSidebarService>; store: ReturnType<typeof createSidebarStore>; dispose: () => void } {
   const store = createSidebarStore()
   const service = createBetterSidebarService(store)
-  const dispose = registerBuiltins({} as Context, service, options)
+  const dispose = registerBuiltins({} as Context, service)
   return { service, store, dispose }
 }
 
 describe('built-in tab registrations', () => {
-  it('registers the 7 built-in tabs', () => {
+  it('registers the 5 built-in tabs (the host owns terminal and browser)', () => {
     const { service } = setup()
     expect(service.getTabs().map(t => t.id).sort()).toEqual(
-      ['browser', 'diff', 'editor', 'git', 'sidechat', 'subagent', 'terminal'],
+      ['diff', 'editor', 'git', 'sidechat', 'subagent'],
     )
   })
 
@@ -101,7 +98,7 @@ describe('built-in tab registrations', () => {
     }
   })
 
-  it('the side chat tab sits between tasks and terminal in the + menu', () => {
+  it('the side chat tab sits between tasks and the removed terminal slot in the + menu', () => {
     const { service } = setup()
     const sidechat = service.getTab('sidechat')
     expect(sidechat?.order).toBe(35)
@@ -154,83 +151,6 @@ describe('built-in tab registrations', () => {
     expect(service.getTab('editor')?.settings?.render).toBeDefined()
   })
 
-  it('the terminal tab declares the model terminal-tools, auto-terminal, shell and custom-font settings', () => {
-    const { service } = setup()
-    const toggles = service.getTab('terminal')?.settings?.toggles ?? []
-    expect(toggles.map(t => t.key)).toEqual(['agentTerminalTools', 'bottomPanelAutoTerminal', 'terminalShell', 'terminalShellArgs', 'terminalFontFamily', 'terminalFontSize'])
-    // The shell rows are text inputs (empty = yaml/auto resolution), the
-    // font rows text/number inputs (not switches), with the size row bounded
-    // by the shared 9–32 contract.
-    expect(toggles[2]?.type).toBe('text')
-    expect(toggles[2]?.title).toBeDefined()
-    expect(toggles[2]?.placeholder).toBeDefined()
-    expect(toggles[3]?.type).toBe('text')
-    expect(toggles[3]?.title).toBeDefined()
-    expect(toggles[4]?.type).toBe('text')
-    expect(toggles[4]?.title).toBeDefined()
-    expect(toggles[4]?.placeholder).toBeDefined()
-    expect(toggles[5]?.type).toBe('number')
-    expect(toggles[5]?.min).toBe(9)
-    expect(toggles[5]?.max).toBe(32)
-    expect(toggles[5]?.unit).toBe('px')
-    // The first two rows stay plain boolean switches.
-    expect(toggles[0]?.type ?? 'switch').toBe('switch')
-    expect(toggles[1]?.type ?? 'switch').toBe('switch')
-  })
-
-  it('the browser tab declares its sandbox, link-takeover master and per-protocol settings', () => {
-    const { service } = setup()
-    const toggles = service.getTab('browser')?.settings?.toggles ?? []
-    expect(toggles.map(t => t.key)).toEqual([
-      'browserNoSandbox',
-      'browserInterceptLinks',
-      'browserInterceptHttp',
-      'browserInterceptHttps',
-      'browserAllowedLoopback',
-    ])
-    for (const toggle of toggles) {
-      expect(toggle.title).toBeDefined()
-      expect(toggle.desc).toBeDefined()
-    }
-  })
-
-  it('the browser createTab mints browser:<n> ids and bumps nextBrowser', () => {
-    const { service, store } = setup()
-    store.setSession('s1')
-    service.openTab({ type: 'browser' })
-    service.openTab({ type: 'browser' })
-    const state = store.getSnapshot().state!
-    const tabs = allLeaves(state.bottomSplits).flatMap(leaf => leaf.tabs).filter(t => t.type === 'browser')
-    expect(tabs).toHaveLength(2)
-    expect(tabs[0]!.id).toBe('browser:1')
-    expect(tabs[1]!.id).toBe('browser:2')
-    expect(state.nextBrowser).toBe(3)
-  })
-
-  it('the terminal createTab uses shell-name titles and hidden uuid ids, allowing duplicates', () => {
-    const { service, store } = setup({ terminalTitle: () => 'bash' })
-    store.setSession('s1')
-    service.openTab({ type: 'terminal' })
-    service.openTab({ type: 'terminal' })
-    const state = store.getSnapshot().state!
-    const tabs = allLeaves(state.bottomSplits).flatMap(leaf => leaf.tabs).filter(t => t.type === 'terminal')
-    expect(tabs).toHaveLength(2)
-    expect(tabs[0]!.title).toBe('bash')
-    expect(tabs[1]!.title).toBe('bash')
-    expect(tabs[0]!.id).toMatch(/^terminal:[0-9a-f-]{36}$/)
-    expect(tabs[1]!.id).toMatch(/^terminal:[0-9a-f-]{36}$/)
-    expect(tabs[0]!.id).not.toBe(tabs[1]!.id)
-  })
-
-  it('the terminal createTab falls back to the localized terminal label before shell info resolves', () => {
-    const { service, store } = setup()
-    store.setSession('s1')
-    service.openTab({ type: 'terminal' })
-    const state = store.getSnapshot().state!
-    const tab = allLeaves(state.bottomSplits).flatMap(leaf => leaf.tabs).find(t => t.type === 'terminal')
-    expect(tab?.title).toBe(t('terminal'))
-  })
-
   it('every built-in tab carries the settings-surface icon', () => {
     const { service } = setup()
     for (const tab of service.getTabs()) {
@@ -256,15 +176,6 @@ describe('built-in tab registrations', () => {
     expect(glyphOf('subagent')).toBe(VscLayers)
     expect(glyphOf('git')).toBe(VscGitCommit)
     expect(glyphOf('sidechat')).toBe(VscCommentDiscussion)
-    expect(glyphOf('browser')).toBe(VscGlobe)
-    // The terminal glyph is the widest in the set, so it renders a step down
-    // from the strip's size. No outline: the glyphs stay exactly as the icon
-    // set draws them, only tinted through the wrapper's token.
-    const wrapper = iconOf('terminal') as ReactElement<{ children?: ReactElement }>
-    const terminal = wrapper.props.children as ReactElement<{ size?: number; style?: Record<string, unknown> }>
-    expect(terminal.type).toBe(VscTerminal)
-    expect(terminal.props.size).toBeLessThan(14)
-    expect(terminal.props.style).toBeUndefined()
   })
 })
 

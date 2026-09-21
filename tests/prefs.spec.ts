@@ -30,18 +30,13 @@ describe('side card preferences', () => {
   })
 
   it('parses a valid value', async () => {
-    expect(await loadPrefs(wire({ autoOpenSubagent: false, agentTerminalTools: true })))
+    expect(await loadPrefs(wire({ autoOpenSubagent: false, agentOpenTools: true })))
       .toEqual({
         autoOpenSubagent: false,
         autoOpenJobs: true,
-        agentTerminalTools: true, agentOpenTools: false,
-        bottomPanelAutoTerminal: true,
-        terminalFontFamily: '',
-        terminalFontSize: 13,
+        agentOpenTools: true,
         editorExplorer: false,
         workspaceFence: true,
-        terminalShell: '',
-        terminalShellArgs: '',
         titleBarScheme: 'auto',
         titleBarPresetId: '',
         customCss: '',
@@ -49,11 +44,9 @@ describe('side card preferences', () => {
         titleBarStripPx: 40,
         htmlViewerNoSandbox: false,
         htmlViewerDefaultUnsafe: false,
-        browserNoSandbox: false,
         browserInterceptLinks: true,
         browserInterceptHttp: true,
         browserInterceptHttps: false,
-        browserAllowedLoopback: '',
         tabsEnabled: {},
         viewersEnabled: {},
         pluginSettings: {},
@@ -61,18 +54,13 @@ describe('side card preferences', () => {
   })
 
   it('falls back per-field when a stored field is malformed', async () => {
-    expect(await loadPrefs(wire({ autoOpenSubagent: 'no', agentTerminalTools: 'yes' })))
+    expect(await loadPrefs(wire({ autoOpenSubagent: 'no', agentOpenTools: 'yes' })))
       .toEqual({
         autoOpenSubagent: true,
         autoOpenJobs: true,
-        agentTerminalTools: false, agentOpenTools: false,
-        bottomPanelAutoTerminal: true,
-        terminalFontFamily: '',
-        terminalFontSize: 13,
+        agentOpenTools: false,
         editorExplorer: false,
         workspaceFence: true,
-        terminalShell: '',
-        terminalShellArgs: '',
         titleBarScheme: 'auto',
         titleBarPresetId: '',
         customCss: '',
@@ -80,30 +68,23 @@ describe('side card preferences', () => {
         titleBarStripPx: 40,
         htmlViewerNoSandbox: false,
         htmlViewerDefaultUnsafe: false,
-        browserNoSandbox: false,
         browserInterceptLinks: true,
         browserInterceptHttp: true,
         browserInterceptHttps: false,
-        browserAllowedLoopback: '',
         tabsEnabled: {},
         viewersEnabled: {},
         pluginSettings: {},
       })
   })
 
-  it('defaults autoOpenSubagent to true and agentTerminalTools to false when the stored value is absent or malformed', async () => {
+  it('defaults autoOpenSubagent to true and the agent toggles to false when the stored value is absent or malformed', async () => {
     expect(await loadPrefs(wire({})))
       .toEqual({
         autoOpenSubagent: true,
         autoOpenJobs: true,
-        agentTerminalTools: false, agentOpenTools: false,
-        bottomPanelAutoTerminal: true,
-        terminalFontFamily: '',
-        terminalFontSize: 13,
+        agentOpenTools: false,
         editorExplorer: false,
         workspaceFence: true,
-        terminalShell: '',
-        terminalShellArgs: '',
         titleBarScheme: 'auto',
         titleBarPresetId: '',
         customCss: '',
@@ -111,25 +92,16 @@ describe('side card preferences', () => {
         titleBarStripPx: 40,
         htmlViewerNoSandbox: false,
         htmlViewerDefaultUnsafe: false,
-        browserNoSandbox: false,
         browserInterceptLinks: true,
         browserInterceptHttp: true,
         browserInterceptHttps: false,
-        browserAllowedLoopback: '',
         tabsEnabled: {},
         viewersEnabled: {},
         pluginSettings: {},
       })
     expect((await loadPrefs(wire({ autoOpenSubagent: 1 }))).autoOpenSubagent)
       .toBe(true)
-    // The terminal-tools feature is OFF by default; only an explicit true turns it on.
-    expect((await loadPrefs(wire({}))).agentTerminalTools)
-      .toBe(false)
-    expect((await loadPrefs(wire({ agentTerminalTools: 1 }))).agentTerminalTools)
-      .toBe(false)
-    expect((await loadPrefs(wire({ agentTerminalTools: true }))).agentTerminalTools)
-      .toBe(true)
-    // The sidebar-open tool is OFF by default too; only an explicit true turns it on.
+    // The sidebar-open tool is OFF by default; only an explicit true turns it on.
     expect((await loadPrefs(wire({}))).agentOpenTools)
       .toBe(false)
     expect((await loadPrefs(wire({ agentOpenTools: 1 }))).agentOpenTools)
@@ -229,22 +201,6 @@ describe('side card preferences', () => {
       .toMatchObject({ browserInterceptLinks: false, browserInterceptHttp: true, browserInterceptHttps: true })
   })
 
-  it('resolves the terminal font prefs (family passthrough, size clamp)', async () => {
-    // Absent → theme default (empty family) + default size.
-    expect((await loadPrefs(wire({}))).terminalFontFamily).toBe('')
-    expect((await loadPrefs(wire({}))).terminalFontSize).toBe(13)
-    // A custom family survives verbatim; a malformed one falls back.
-    expect((await loadPrefs(wire({ terminalFontFamily: '"JetBrains Mono", monospace' }))).terminalFontFamily)
-      .toBe('"JetBrains Mono", monospace')
-    expect((await loadPrefs(wire({ terminalFontFamily: 42 }))).terminalFontFamily).toBe('')
-    // The size clamps into 9–32 (rounded); non-numbers fall back.
-    expect((await loadPrefs(wire({ terminalFontSize: 5 }))).terminalFontSize).toBe(9)
-    expect((await loadPrefs(wire({ terminalFontSize: 40 }))).terminalFontSize).toBe(32)
-    expect((await loadPrefs(wire({ terminalFontSize: 15.6 }))).terminalFontSize).toBe(16)
-    expect((await loadPrefs(wire({ terminalFontSize: 'big' }))).terminalFontSize).toBe(13)
-    expect((await loadPrefs(wire({ terminalFontSize: 18 }))).terminalFontSize).toBe(18)
-  })
-
   it('validates the per-tab / per-viewer enable maps (absent keys mean enabled)', async () => {
     // A non-object map falls back to {} (everything enabled).
     expect((await loadPrefs(wire({ tabsEnabled: 'nope' }))).tabsEnabled).toEqual({})
@@ -294,8 +250,8 @@ describe('boot decision (one fetch for prefs + external disable)', () => {
   })
 
   it('reads suspended false when the flag is absent', async () => {
-    const decision = await loadBootDecision(wire({ terminalFontSize: 20 }))
+    const decision = await loadBootDecision(wire({ titleBarStripPx: 60 }))
     expect(decision.suspended).toBe(false)
-    expect(decision.prefs.terminalFontSize).toBe(20)
+    expect(decision.prefs.titleBarStripPx).toBe(60)
   })
 })

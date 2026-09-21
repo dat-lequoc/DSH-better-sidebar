@@ -33,8 +33,13 @@ import { PAGE_URL, createHostApi, hostRpc, sendFirstMessage } from './host'
  *  share seed paths with mount/drag). */
 const WORKSPACE_PATH = process.env.DSH_E2E_PERF_WORKSPACE ?? join(tmpdir(), 'dsh-e2e-perf-workspace')
 
-/** Built-in tab titles the sweep drives (en-US copy; follows DSH locale). */
-const NATIVE_TABS = ['files', 'git', 'subagent', 'sidechat', 'terminal', 'browser']
+/**
+ * Every tab type the composed guide must offer: the plugin's own four plus
+ * DSH 0.1.6's host-owned terminal and browser. This plugin deliberately ships
+ * neither of those, so exactly one entry each proves it is not shadowing the
+ * host. The ids are the guides' `data-sidebar-right-guide-entry` keys.
+ */
+const NATIVE_TABS = ['files', 'git', 'subagent', 'sidechat', 'terminal', 'browser'] as const
 
 let api: APIRequestContext
 

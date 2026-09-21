@@ -89,7 +89,18 @@ describe('service routing into the native surface', () => {
     store.setSession('s1')
     const service = createBetterSidebarService(store)
     service.setSurface(surface)
-    service.registerTab({ id: 'terminal', title: 'Terminal', component: () => null, createTab: state => ({ tab: { id: `terminal:${state.nextTerminal}`, type: 'terminal', title: 'Terminal', meta: { n: state.nextTerminal } } }) })
+    service.registerTab({
+      id: 'my-plugin:term',
+      title: 'Terminal',
+      component: () => null,
+      createTab: state => ({
+        // A `terminal`-shaped tab id (the plugin no longer ships that type,
+        // but the service treats the descriptor id as an open string) keeps
+        // this fixture's native routing identical.
+        tab: { id: `terminal:${state.nextBrowser}`, type: 'terminal', title: 'Terminal', meta: { n: state.nextBrowser } },
+        patch: { nextBrowser: state.nextBrowser + 1 },
+      }),
+    })
     service.registerTab({ id: 'git', title: 'Changes', component: () => null })
     service.registerTab({ id: 'editor', title: 'Files', component: () => null, icon: () => null })
     return { surface, calls, service }
@@ -97,11 +108,11 @@ describe('service routing into the native surface', () => {
 
   it('opens a page type natively, carrying the descriptor factory seed', () => {
     const { service, calls } = mount()
-    service.openTab({ type: 'terminal' }, scope)
+    service.openTab({ type: 'my-plugin:term' }, scope)
     expect(calls).toEqual([{
       op: 'openTab',
       sessionId: 's1',
-      kind: 'terminal',
+      kind: 'my-plugin:term',
       params: { title: 'Terminal', meta: { n: 1 } },
       revealIfOpened: false,
     }])
@@ -141,8 +152,8 @@ describe('service routing into the native surface', () => {
       id: 'my-plugin:console',
       title: 'Console',
       createTab: (state) => ({
-        tab: { id: `console:${state.nextTerminal}`, type: 'my-plugin:console', title: 'Console' },
-        patch: { nextTerminal: state.nextTerminal + 1 },
+        tab: { id: `console:${state.nextBrowser}`, type: 'my-plugin:console', title: 'Console' },
+        patch: { nextBrowser: state.nextBrowser + 1 },
       }),
       component: () => null,
     })

@@ -121,6 +121,29 @@ describe('skin contract: the plugin owns no color of its own', () => {
     }
   })
 
+  it('the empty-pane welcome capsule follows the host guide recipe', () => {
+    // The card is the same surface as DSH's own guide capsule ("pick what
+    // opens here"), so this pins the shared geometry and the token-only
+    // paint. A literal here would drift away from the host under every skin.
+    const styles = readFileSync(resolve(ROOT, 'src/client/sidebar.module.css'), 'utf8')
+    const block = /\.paneCard \{([\s\S]*?)\n\}/.exec(styles)?.[1]
+    expect(block, 'the .paneCard rule must exist').toBeDefined()
+    expect(block!).toContain('border: 0.5px solid var(--dsw-alias-border-l4)')
+    expect(block!).toContain('border-radius: 24px')
+    expect(block!).toContain('background: var(--dsw-alias-bg-layer-1)')
+    expect(block!).toContain('min-height: 56px')
+    expect(block!).toContain('padding: 14px 20px')
+    // No paint of its own: every color-ish declaration resolves to a token,
+    // and the upstream-only spellings this repo must not copy are absent.
+    for (const declaration of block!.matchAll(/(?:^|\n)\s*(?:background|border|color|font):\s*([^;]+);/g)) {
+      const value = declaration[1]
+      if (!/var\(--dsw-/.test(value)) continue
+      expect(value, declaration[0]).toContain('var(--dsw-')
+    }
+    expect(block!).not.toContain('--dsw-alias-bg-l1')
+    expect(block!).not.toContain('--dsw-alias-bg-l2')
+  })
+
   it('no icon dataset is shipped as a lazy chunk', () => {
     const chunkDir = resolve(ROOT, 'src/client/chunks')
     const chunks = readdirSync(chunkDir).filter(name => /\.tsx?$/.test(name))
