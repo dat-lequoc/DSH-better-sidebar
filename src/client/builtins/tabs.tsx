@@ -12,7 +12,7 @@
  * from the chat's http(s) links) owns embedded pages. See
  * docs/plans/2026-09-21-dsh-0.1.6-alpha.2-adaptation.md.
  */
-import { IconCodeOutline16, IconPanelLeftOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCodeOutlineRegular, IconPanelLeftOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
   changesTabIcon, filesTabIcon, sidechatTabIcon, tasksTabIcon,
 } from './tab-icons.tsx'
@@ -27,7 +27,7 @@ import { consumeSidechatSeed, SideChatView, sidechatThreadIdOf } from '../SideCh
 import { api } from '../api.ts'
 import type { TabDescriptor } from '../service.ts'
 
-/** The 6 built-in tab descriptors. */
+/** The 5 built-in tab descriptors (the host owns terminal and browser). */
 export function builtinTabs(): readonly TabDescriptor[] {
   return [
     {
@@ -57,13 +57,13 @@ export function builtinTabs(): readonly TabDescriptor[] {
           options: [
             {
               value: true,
-              icon: (size: number) => <IconPanelLeftOutline16 size={size} />,
+              icon: (size: number) => <IconPanelLeftOutlineRegular size={size} />,
               title: () => t('editorExplorerMerged'),
               desc: () => t('editorExplorerMergedDesc'),
             },
             {
               value: false,
-              icon: (size: number) => <IconCodeOutline16 size={size} />,
+              icon: (size: number) => <IconCodeOutlineRegular size={size} />,
               title: () => t('editorExplorerSplit'),
               desc: () => t('editorExplorerSplitDesc'),
             },

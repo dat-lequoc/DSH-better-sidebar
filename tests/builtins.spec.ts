@@ -1,9 +1,12 @@
 /**
- * Built-in registration tests: the plugin registers 5 tabs and 6 file
+ * Built-in registration tests: the plugin registers 5 tabs and 3 file
  * viewers through the same service external plugins use (dogfooding);
- * the catch-all `code` viewer, the NUL-sniffing `binary-download` viewer,
- * and the html sandbox settings pin the registry's behavior. (Office
- * previews are NOT built in — they moved to the recommended office plugin,
+ * the catch-all `code` viewer and the html sandbox settings pin the
+ * registry's behavior. The read-only previews (image / pdf /
+ * binary-download) were yielded to the host's own document preview
+ * (DSH 0.1.7 `ui-sidebar-documentpreview`) and legacy Office
+ * doc/xls/ppt now fall through to the host too. (Office previews were
+ * already NOT built in — they moved to the recommended office plugin,
  * see src/client/plugins-viewers.ts.) The git tab is the unified changes
  * tab (git lens + session lens, PR #471's file-trace merged in).
  */
@@ -15,6 +18,7 @@ import './browser-globals.ts'
 
 import type { Context } from '../src/context-types.ts'
 import { createBetterSidebarService } from '../src/client/service.ts'
+import { planFsReadOutcome } from '../src/client/editor-load.ts'
 import { createSidebarStore } from '../src/client/state.ts'
 import { registerBuiltins } from '../src/client/builtins/index.ts'
 import { parkSidechatReopen } from '../src/client/SideChatView.tsx'
@@ -180,16 +184,38 @@ describe('built-in tab registrations', () => {
 })
 
 describe('built-in file viewer registrations', () => {
-  it('registers the 6 built-in file viewers (office previews live in the recommended office plugin)', () => {
+  it('registers the 3 built-in file viewers (the read-only previews yielded to the host)', () => {
     const { service } = setup()
     expect(service.getFileViewers().map(v => v.id).sort()).toEqual(
-      ['binary-download', 'code', 'html', 'image', 'markdown', 'pdf'],
+      ['code', 'html', 'markdown'],
     )
-    // Office previews are not built in: docx/xlsx/pptx files fall through to
-    // the download-only binary viewer (or a registered office plugin).
-    expect(service.getFileViewers().map(v => v.id)).not.toContain('docx')
-    expect(service.getFileViewers().map(v => v.id)).not.toContain('xlsx')
-    expect(service.getFileViewers().map(v => v.id)).not.toContain('pptx')
+    // The yielded ids are gone: the host's own document preview
+    // (ui-sidebar-documentpreview) owns images, pdf, spreadsheets, office
+    // and plain text; the plugin keeps only markdown / html / the editable
+    // code catch-all.
+    for (const id of ['image', 'pdf', 'binary-download']) {
+      expect(service.getFileViewers().map(v => v.id), `${id} must not be built in`).not.toContain(id)
+    }
+    // Office previews are not built in either: they live in the recommended
+    // office plugin (which registers the ids through this service).
+    for (const id of ['docx', 'xlsx', 'pptx']) {
+      expect(service.getFileViewers().map(v => v.id)).not.toContain(id)
+    }
+  })
+
+  it('the yielded viewer ids stay registrable by external plugins (public contract)', () => {
+    const { service } = setup()
+    // Dropping the built-in descriptors must not freeze the ids: the
+    // registry API keeps accepting them from third-party plugins.
+    const dispose = service.registerFileViewer({
+      id: 'image',
+      exts: ['png'],
+      fetchStrategy: 'mediaUrl',
+      component: () => null,
+    })
+    expect(service.matchFileViewer('photo.png')?.id).toBe('image')
+    dispose()
+    expect(service.matchFileViewer('photo.png')?.id).toBe('code')
   })
 
   it('code is the catch-all at the lowest priority', () => {
@@ -226,24 +252,43 @@ describe('built-in file viewer registrations', () => {
     expect(toggles[1]?.desc).toBeDefined()
   })
 
-  it('binary-download claims legacy office by extension (office previews are not built in)', () => {
+  it('no built-in viewer claims the yielded extensions (the host document preview does)', () => {
     const { service } = setup()
-    expect(service.matchFileViewer('old.doc')?.id).toBe('binary-download')
-    expect(service.matchFileViewer('old.xls')?.id).toBe('binary-download')
-    expect(service.matchFileViewer('old.ppt')?.id).toBe('binary-download')
-    // Modern office files (zip containers, NUL-free) fall through to the
-    // catch-all code viewer without an office plugin registered.
-    expect(service.matchFileViewer('book.docx', new Uint8Array([0x50, 0x4b, 0x03, 0x04]))?.id).toBe('code')
+    // The spreadsheet / pdf / image / office set yielded to the host: the
+    // only plugin-side match left is the catch-all code viewer, so the
+    // `editor` type can hand these addresses over (see native/index.ts's
+    // canOpen). Legacy doc/xls/ppt were previously claimed by the removed
+    // `binary-download` viewer and are now the host's too.
+    for (const path of [
+      'book.xlsx', 'legacy.xls', 'macro.xlsb', 'sheet.xlt', 'template.xltx', 'macro.xltm',
+      'flat.ods', 'flat.ots', 'flat.fods', 'data.csv', 'data.tsv',
+      'paper.pdf', 'photo.png', 'photo.jpg', 'anim.gif', 'photo.webp', 'art.svg',
+      'tile.bmp', 'favicon.ico', 'next.avif',
+      'report.docx', 'report.doc', 'notes.dot', 'notes.dotx',
+      'deck.pptx', 'deck.ppt',
+    ]) {
+      expect(service.matchFileViewer(path)?.id, path).toBe('code')
+    }
   })
 
-  it('binary-download NUL detect claims unknown-extension binaries over code', () => {
+  it('an unknown-extension binary still downloads (the catch-all + host fallback)', () => {
     const { service } = setup()
-    // First match (no head) falls to the catch-all code viewer...
+    // Without the removed `binary-download` descriptor no built-in viewer
+    // carries a `detect` probe, so the catch-all blind-claims everything...
     expect(service.matchFileViewer('blob.zzz')?.id).toBe('code')
-    // ...but the head re-match (NUL probe) routes it to binary-download.
-    expect(service.matchFileViewer('blob.zzz', new Uint8Array([0x01, 0x00, 0x02]))?.id).toBe('binary-download')
-    // A NUL-free blob stays with code.
-    expect(service.matchFileViewer('blob.zzz', new Uint8Array([0x61, 0x62]))?.id).toBe('code')
+    expect(service.getFileViewers().some(v => v.detect !== undefined)).toBe(false)
+    // ...and the head re-match (the same call the editor host makes on a
+    // binary fsRead result) finds no sniffer either: the fsRead catch-all
+    // cannot render binary, so planFsReadOutcome hands the host its
+    // `binary` outcome and the editor renders the download pane.
+    expect(service.matchFileViewer('blob.zzz', new Uint8Array([0x01, 0x00, 0x02]))?.id).toBe('code')
+    const code = service.getFileViewers().find(v => v.id === 'code')
+    expect(planFsReadOutcome(code!, {
+      binary: true,
+      content: '',
+      truncated: false,
+      head: Buffer.from([0x01, 0x00, 0x02]).toString('base64'),
+    }, (head) => service.matchFileViewer('blob.zzz', head), () => '/media')).toEqual({ kind: 'binary' })
   })
 
   it('every built-in viewer carries the declarative settings surface (title + icon)', () => {

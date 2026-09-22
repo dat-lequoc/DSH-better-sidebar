@@ -111,30 +111,6 @@ export interface SidebarPrefs {
    */
   htmlViewerDefaultUnsafe: boolean
   /**
-   * MASTER switch: whether clicking an EXTERNAL link in the GUI (chat
-   * messages, tool rows, prose mentions) is taken over into the sidebar at
-   * all. On by default; the per-protocol granularity lives in
-   * `browserInterceptHttp` / `browserInterceptHttps` (the protocol flag
-   * must also be on). Ctrl/Cmd+click always bypasses the takeover. Kept as the master so old
-   * documents keep their meaning with no migration (an explicit `false`
-   * stays "never take over").
-   */
-  browserInterceptLinks: boolean
-  /**
-   * Whether clicking an http EXTERNAL link in the GUI opens DSH's own
-   * sidebar browser (or a plugin tab that declares `urlTarget`) instead of a
-   * new browser tab. On by default; gated on the `browserInterceptLinks`
-   * master.
-   */
-  browserInterceptHttp: boolean
-  /**
-   * Whether clicking an https EXTERNAL link in the GUI opens the sidebar
-   * instead of a new browser tab. OFF by default — most https sites (e.g.
-   * GitHub) refuse iframe embedding, so the system browser is the smoother
-   * default; gated on the `browserInterceptLinks` master.
-   */
-  browserInterceptHttps: boolean
-  /**
    * Per-tab enable switches, keyed by tab descriptor id (`'explorer'`,
    * `'my-plugin:db'`). An ABSENT key means enabled — only an explicit
    * `false` disables a tab type (hidden from the + menu, `openTab` refuses,
@@ -185,9 +161,6 @@ export const SIDEBAR_PREFS_DEFAULTS: SidebarPrefs = {
   titleBarStripPx: TITLE_BAR_STRIP_DEFAULT,
   htmlViewerNoSandbox: false,
   htmlViewerDefaultUnsafe: false,
-  browserInterceptLinks: true,
-  browserInterceptHttp: true,
-  browserInterceptHttps: false,
   tabsEnabled: {},
   viewersEnabled: {},
   pluginSettings: {},

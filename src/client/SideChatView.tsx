@@ -29,16 +29,16 @@ import clsx from 'clsx'
 import {
   ConnectionIndicator,
   DiffBlock,
-  IconApiOutline14,
-  IconBrowseOutline16,
-  IconChevronRightOutline14,
-  IconEditOutline16,
-  IconNewChatOutline16,
-  IconPlusOutline16,
-  IconSearchOutline16,
-  IconSendOutline14,
-  IconSparkle16,
-  IconStopFill16,
+  IconApiOutlineRegular,
+  IconBrowseOutlineRegular,
+  IconChevronRightOutlineRegular,
+  IconEditOutlineRegular,
+  IconNewChatOutlineRegular,
+  IconPlusOutlineRegular,
+  IconSearchOutlineRegular,
+  IconSendOutlineRegular,
+  IconSparkleRegular,
+  IconStopFillRegular,
   MarkdownText,
   Menu,
   ReadBlock,
@@ -198,7 +198,7 @@ function CollapsibleRow(props: {
         )}
       >
         <span className={css.sidechatRowChevron}>
-          <IconChevronRightOutline14 size={12} />
+          <IconChevronRightOutlineRegular size={12} />
         </span>
         {leading}
         {label}
@@ -239,19 +239,19 @@ function toolLeading(name: string, failed: boolean): React.ReactNode {
   switch (name) {
     case 'bash':
     case 'pwsh':
-      return <IconApiOutline14 size={14} />
+      return <IconApiOutlineRegular size={14} />
     case 'read':
     case 'web_fetch':
-      return <IconBrowseOutline16 size={14} />
+      return <IconBrowseOutlineRegular size={14} />
     case 'edit':
     case 'write':
-      return <IconEditOutline16 size={14} />
+      return <IconEditOutlineRegular size={14} />
     case 'grep':
     case 'glob':
     case 'web_search':
-      return <IconSearchOutline16 size={14} />
+      return <IconSearchOutlineRegular size={14} />
     default:
-      return <IconSparkle16 size={14} />
+      return <IconSparkleRegular size={14} />
   }
 }
 
@@ -596,7 +596,7 @@ export function SideChatView(props: {
 
   const menuItems = useMemo<MenuEntry[]>(() => {
     const items: MenuEntry[] = [
-      { id: '$new', label: t('sideChatNew'), icon: <IconPlusOutline16 /> },
+      { id: '$new', label: t('sideChatNew'), icon: <IconPlusOutlineRegular /> },
     ]
     if (threads.length > 0) {
       items.push({ type: 'separator', id: '$sep' })
@@ -677,7 +677,7 @@ export function SideChatView(props: {
     return (
       <div className={css.sidechat}>
         <div className={css.sidechatHero}>
-          <IconNewChatOutline16 />
+          <IconNewChatOutlineRegular />
           <div
             className={clsx(
               css.sidechatHeroTitle,
@@ -793,7 +793,7 @@ export function SideChatView(props: {
               disabled={busy !== null}
               title={t('sideChatCancelTitle')}
             >
-              <IconStopFill16 />
+              <IconStopFillRegular />
             </button>
           ) : (
             <button
@@ -804,7 +804,7 @@ export function SideChatView(props: {
               disabled={composer.trim() === '' || busy !== null}
               title={t('sideChatSend')}
             >
-              <IconSendOutline14 size={16} />
+              <IconSendOutlineRegular size={16} />
             </button>
           )}
         </div>

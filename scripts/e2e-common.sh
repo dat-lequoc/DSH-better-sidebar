@@ -42,9 +42,9 @@ e2e_require_cmd() {
 # 缺省值（`dsh`）由调用方从环境变量取好传入。
 #
 # 回退的 npx 版本是显式钉死的：不钉就会解析 npm 的 `latest` dist-tag，而
-# 0.1.6 线目前只有预发布（`latest` 仍是 0.1.5-rc.2），冒烟会静静地挂到一
+# 0.1.7 线目前只有预发布（`latest` 仍是 0.1.5-rc.2），冒烟会静静地挂到一
 # 个插件已不支持的宿主上。钉版必须与 package.json 的 peer 下限同步。
-DSH_NPX_SPEC="${DSH_NPX_SPEC:-@deepseek-ai/dsh@0.1.6-alpha.2}"
+DSH_NPX_SPEC="${DSH_NPX_SPEC:-@deepseek-ai/dsh@0.1.7-alpha.1}"
 e2e_resolve_dsh_cmd() {
   local explicit="${DSH_CMD}"
   if ! command -v "$DSH_CMD" >/dev/null 2>&1; then
@@ -59,13 +59,14 @@ e2e_resolve_dsh_cmd() {
 }
 
 # 解析出的 CLI 版本必须与 peer 下限同一条支持线。这不是洁癖：宿主只比
-# 0.1.6-alpha.2 早一个预发布（alpha.1）时，`dsh plugin add` 的 bundle 协调
-# 会静默不写 `dsh.profile.bundles`——CLI 退出码仍是 0，lane 却挂在「挂载未
-# 注册」上，排查方向完全被带偏（本机 PATH 上的 dsh 恰好就是 alpha.1，实测）。
-# DSH_CMD 显式给出时不拦（调用方明确知道自己在挂什么），只告警。
+# 基线早一个预发布时，`dsh plugin add` 的 bundle 协调会静默不写
+# `dsh.profile.bundles`——CLI 退出码仍是 0，lane 却挂在「挂载未注册」上，
+# 排查方向完全被带偏（本机 PATH 上的 dsh 一直是上一版，0.1.6-alpha.1 与
+# 0.1.6-alpha.2 各实测过一次）。DSH_CMD 显式给出时不拦（调用方明确知道自
+# 己在挂什么），只告警。
 e2e_check_dsh_version() {
   local explicit="$1" actual expected
-  expected="${DSH_EXPECT_VERSION:-0.1.6-alpha.2}"
+  expected="${DSH_EXPECT_VERSION:-0.1.7-alpha.1}"
   # `dsh --version` 冷启动要走 npx，给足预算；拿不到版本就只告警。
   actual="$($DSH_CMD --version 2>/dev/null | tr -d '[:space:]' | head -c 64 || true)"
   case "$actual" in

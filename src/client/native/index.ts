@@ -5,9 +5,11 @@
  *
  * - the `editor` type is both a page (the files window) and a resource
  *   viewer — it claims `dsh-resource://file/**` at the default `extension`
- *   band, which outranks the built-in `text` preview (`fallback`) and the
- *   built-in `files` tree (`builtin`), so every file the product opens lands
- *   in the plugin's editor;
+ *   band, which outranks the built-in `text` preview (`fallback`), so a file
+ *   the product opens lands in the plugin's editor — EXCEPT the formats
+ *   {@link HOST_OWNED_EXTS} hands back to DSH's own previews, which are
+ *   strictly better for binary documents (host-side Office→PDF conversion,
+ *   a worker-backed spreadsheet table, a zoom viewport);
  * - the built-in `files` page kind is TAKEN OVER by an `extension`
  *   registration of the same kind, so `openTab('files')` draws the plugin's
  *   explorer instead of the built-in tree; the built-in resumes when this
@@ -33,6 +35,42 @@ import {
   type NativeTabParams,
   type NativeTabRecords,
 } from './tab-adapter.tsx'
+
+/**
+ * Extensions DSH's own previews own, and this plugin therefore refuses.
+ *
+ * DSH 0.1.7 grew a real document-preview package (host-side Office→PDF
+ * conversion, a worker-backed spreadsheet table, image/PDF zoom viewports and
+ * per-directory auto-refresh) for exactly these formats, while the plugin's
+ * equivalents are read-only fallbacks. The plugin keeps what the built-in does
+ * NOT do: Markdown through its own renderer, HTML through its sandboxed route
+ * with the `htmlViewerNoSandbox` safety valve, and — through the `code`
+ * catch-all — a genuinely EDITABLE CodeMirror buffer for every text file.
+ *
+ * Refusing here is what hands the address over: `canOpen` returning false
+ * leaves the built-in `text` type (the `fallback` band) as the only claimant.
+ */
+const HOST_OWNED_EXTS: ReadonlySet<string> = new Set([
+  // Spreadsheets: the built-in renders a table in a worker.
+  'xlsx', 'xls', 'xlsb', 'xlt', 'xltx', 'xltm', 'ods', 'ots', 'fods', 'csv', 'tsv',
+  // PDF: the built-in viewer pages and zooms.
+  'pdf',
+  // Images: the built-in viewer adds a zoom viewport.
+  'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif',
+  // Office documents: the built-in converts them to PDF host-side.
+  'doc', 'docx', 'dot', 'dotx', 'ppt', 'pptx',
+])
+
+/**
+ * Whether DSH's own preview owns one path.
+ * @param path - the address's decoded path.
+ * @returns true for a {@link HOST_OWNED_EXTS} extension (a dotfile is not one).
+ */
+function hostOwnedPath(path: string): boolean {
+  const name = path.slice(path.lastIndexOf('/') + 1)
+  const dot = name.lastIndexOf('.')
+  return dot > 0 && HOST_OWNED_EXTS.has(name.slice(dot + 1).toLowerCase())
+}
 
 /** The native tab-type registry face (`ctx.sidebarRightTabs`). */
 interface NativeTabRegistry {
@@ -190,7 +228,12 @@ export function registerNativeSurface(deps: NativeSurfaceDeps): () => void {
         ...(isEditor
           ? {
             patterns: ['dsh-resource://file/**'],
-            canOpen: (address: string) => parseFileAddress(address) !== undefined,
+            canOpen: (address: string) => {
+              const file = parseFileAddress(address)
+              // A non-file address, or one of the formats the built-in
+              // previews own, leaves the address to DSH's own `text` type.
+              return file !== undefined && !hostOwnedPath(file.path)
+            },
           }
           : {}),
         // An external implementation outranks the product's own viewers, which

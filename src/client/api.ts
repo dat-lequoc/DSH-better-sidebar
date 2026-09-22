@@ -9,7 +9,7 @@
 import { encodeHtmlUrl } from '../html-route.ts'
 import type { LastActivity } from '../subagent-activity.ts'
 import type { SidechatLiveEvent, SidechatLogEvent, SidechatThreadInfo } from '../sidechat-core.ts'
-import type { SidebarSessionEvent } from '../context-types.ts'
+import type { SidebarJobView, SidebarSessionEvent } from '../context-types.ts'
 
 /** One wire failure. */
 export class SidebarApiError extends Error {
@@ -329,6 +329,17 @@ export const api = {
    */
   jobOutput: (scope: SessionScope, id: string, signal?: AbortSignal) =>
     call<JobOutputResult>('jobs.output', scopePayload(scope, { id }), signal),
+  /**
+   * The background-job list of one session (the Tasks page's jobs section and
+   * the job auto-open trigger). DSH 0.1.7 dropped the client session
+   * snapshot's jobs mirror, so the registry is read through the plugin's own
+   * `jobs.list` route. The registry's access fence admits a job to its OWNER
+   * session (and to unowned jobs) only, so a caller that needs the whole tree
+   * asks once per tree session. A host without the jobs service answers 503:
+   * the rejection is the caller's to degrade from (an empty section).
+   */
+  jobsList: (sessionId: string, signal?: AbortSignal) =>
+    call<{ jobs: SidebarJobView[] }>('jobs.list', { sessionId }, signal),
   /** Request cancellation of one background job (live jobs flip to stopping). */
   jobKill: (scope: SessionScope, id: string, reason?: string) =>
     call<{ ok: true; outcome: 'requested' | 'already-finished' }>('jobs.kill', scopePayload(scope, {

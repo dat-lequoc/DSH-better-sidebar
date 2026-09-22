@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve as resolvePath } from 'node:path'
 import { SettingsConflictError, type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import { apply, mediaTypeForPath } from '../src/index.ts'
+import { SIDEBAR_PREFS_DEFAULTS } from '../src/prefs-shared.ts'
 import { encodeHtmlUrl } from '../src/html-route.ts'
 import * as git from '../src/git.ts'
 import { listDirectory } from '../src/fs-tree.ts'
@@ -86,7 +87,7 @@ describe('host plugin smoke', () => {
       '/sidebar/file',
       '/sidebar/html',
     ])
-    expect(upgrades.map(route => route.path)).toEqual(['/sidebar/ws/agent-opens'])
+    expect(upgrades.map(route => route.path)).toEqual(['/sidebar/ws/agent-opens', '/sidebar/ws/fs-watch'])
     // Teardown runs without throwing.
     for (const cleanup of effects) cleanup()
   })
@@ -625,95 +626,116 @@ describe('session cwd resolution over the API route', () => {
     }
   })
 })
+/**
+ * Invoke one `/sidebar/api/<method>` route against a fake Socket-ish pair.
+ * @param route - the mounted prefix route.
+ * @param method - the API method name.
+ * @param payload - the JSON request body.
+ * @returns the parsed envelope.
+ */
+const invoke = async (route: SidebarWebRoute, method: string, payload: unknown): Promise<{
+  ok: boolean
+  value?: unknown
+  error?: { code?: string; message: string }
+}> => {
+  const body = Buffer.from(JSON.stringify(payload))
+  const req = {
+    method: 'POST',
+    url: `/sidebar/api/${method}`,
+    headers: { host: '127.0.0.1:3080' },
+    [Symbol.asyncIterator]: async function* () { yield body },
+  } as never
+  const out: { status: number; body: string } = { status: 200, body: '' }
+  const res = {
+    writeHead: (status: number) => { out.status = status },
+    end: (chunk: unknown) => { out.body += String(chunk ?? '') },
+  } as never
+  await route.handler(req, res)
+  return JSON.parse(out.body) as { ok: boolean; value?: unknown; error?: { code?: string; message: string } }
+}
+
+/** The Loader entry id this plugin's row is mounted under in these tests. */
+const ENTRY_ID = 'better-sidebar'
+/** The fiber that row owns; the plugin matches it by identity. */
+const PLUGIN_FIBER = { name: 'dsh-better-sidebar' }
+
+/**
+ * A minimal settings FORMS seam: `describe`/`update`/`configure` over one
+ * entry, with the revision guard. DSH 0.1.7 replaced the registrable namespace
+ * with exactly this shape, so the plugin no longer owns the schema — it
+ * reports what `describe` gives it and writes through `update`.
+ * @param pre - user-layer values staged per entry id before the plugin mounts.
+ */
+const createFakeSettings = (pre?: Record<string, Record<string, unknown>>) => {
+  // The plugin's own row always exists in a real profile — it IS the row that
+  // mounted the plugin — so its form is addressable before anything is written.
+  const rows = new Map<string, { value: Record<string, unknown>; revision: number }>([
+    [ENTRY_ID, { value: {}, revision: 0 }],
+  ])
+  for (const [ns, value] of Object.entries(pre ?? {})) rows.set(ns, { value, revision: 0 })
+  return {
+    describe(options?: { redactSecrets?: boolean }) {
+      return [...rows.entries()].map(([ns, row]) => ({
+        ns,
+        value: { ...SIDEBAR_PREFS_DEFAULTS, ...row.value },
+        revision: row.revision,
+        ...(options?.redactSecrets === true ? {} : { user: row.value }),
+      }))
+    },
+    async update(ns: string, patch: Record<string, unknown>, expectedRevision?: number) {
+      const row = rows.get(ns)
+      if (row === undefined) throw new Error(`No configurable plugin entry "${ns}"`)
+      if (expectedRevision !== undefined && expectedRevision !== row.revision) {
+        throw new SettingsConflictError(ns as SettingsNamespace, expectedRevision, row.revision)
+      }
+      row.value = { ...row.value, ...patch }
+      row.revision += 1
+    },
+    configure() {
+      return () => {}
+    },
+  }
+}
+
+/**
+ * Mount the host plugin against a fake context carrying a settings seam.
+ * @param settings - the settings forms fake; omit to simulate a deployment with none.
+ * @param home - a harness home holding a retired `settings.yaml`, when the test wants the legacy import to run.
+ * @returns the mounted `/sidebar/api` route.
+ */
+const mountWithSettings = (settings?: unknown, home?: string): SidebarWebRoute => {
+  const routes: SidebarWebRoute[] = []
+  const ctx = {
+    webRuntime: { trustedHosts: [] },
+    webServer: {
+      register: (route: SidebarWebRoute) => { routes.push(route); return () => {} },
+      registerUpgrade: (route: SidebarWebUpgradeRoute) => { void route; return () => {} },
+    },
+    sessions: { get: () => undefined },
+    tools: { register: () => () => {} },
+    effect: (fn: () => void | (() => void)) => { fn() },
+    inject: (deps: string[], callback: (sctx: { settings: unknown }) => void) => {
+      if (deps.includes('settings') && settings !== undefined) callback({ settings })
+      return () => {}
+    },
+    // The session/agent event feeds: nothing emits in these tests.
+    on: () => () => {},
+    // No jobs/agents services: the jobs routes degrade to a 503.
+    get: () => undefined,
+    fiber: PLUGIN_FIBER,
+    // The plugin discovers its own settings entry id from the loader, so a
+    // fake without these entries has NO settings face at all.
+    loader: {
+      entries: () => [{ options: { id: ENTRY_ID, name: 'dsh-better-sidebar' }, fiber: PLUGIN_FIBER }],
+    },
+    logger: { info: () => {}, warn: () => {}, debug: () => {}, error: () => {} },
+    ...(home === undefined ? {} : { profileContext: { home } }),
+  }
+  apply(ctx as never)
+  return routes.find(route => route.path === '/sidebar/api')!
+}
 
 describe('side card settings routes', () => {
-  /** A minimal settings seam: register/describe/update with the revision guard. */
-  const createFakeSettings = (pre?: Record<string, Record<string, unknown>>) => {
-    const namespaces = new Map<string, {
-      schema: unknown
-      value: Record<string, unknown> | undefined
-      revision: number
-    }>()
-    for (const [ns, value] of Object.entries(pre ?? {})) {
-      namespaces.set(ns, { schema: (input: unknown) => input, value, revision: 0 })
-    }
-    const resolve = (entry: { schema: unknown; value: Record<string, unknown> | undefined }): unknown => {
-      const schema = entry.schema as (input: unknown) => unknown
-      return entry.value === undefined ? schema(undefined) : schema(entry.value)
-    }
-    return {
-      register(ns: string, schema: unknown) {
-        // Preserve a pre-seeded value: tests stage prefs through the `pre`
-        // map before the plugin mounts and registers the same namespace.
-        const existing = namespaces.get(ns)
-        namespaces.set(ns, { schema, value: existing?.value ?? undefined, revision: 0 })
-        return { get: () => ({}), watch: () => () => {}, update: async () => {}, replace: async () => {} }
-      },
-      describe() {
-        return [...namespaces.entries()].map(([ns, entry]) => ({
-          ns,
-          value: resolve(entry),
-          applies: 'live' as const,
-          revision: entry.revision,
-        }))
-      },
-      async update(ns: string, patch: Record<string, unknown>, expectedRevision?: number) {
-        const entry = namespaces.get(ns)
-        if (entry === undefined) throw new Error(`settings namespace "${ns}" is not registered`)
-        if (expectedRevision !== undefined && expectedRevision !== entry.revision) {
-          throw new SettingsConflictError(ns as SettingsNamespace, expectedRevision, entry.revision)
-        }
-        entry.value = { ...entry.value, ...patch }
-        entry.revision += 1
-      },
-    }
-  }
-
-  const mountWithSettings = (settings?: unknown): SidebarWebRoute => {
-    const routes: SidebarWebRoute[] = []
-    const ctx = {
-      webRuntime: { trustedHosts: [] },
-      webServer: {
-        register: (route: SidebarWebRoute) => { routes.push(route); return () => {} },
-        registerUpgrade: (route: SidebarWebUpgradeRoute) => { void route; return () => {} },
-      },
-      sessions: { get: () => undefined },
-      tools: { register: () => () => {} },
-      effect: (fn: () => void | (() => void)) => { fn() },
-      inject: (deps: string[], callback: (sctx: { settings: unknown }) => void) => {
-        if (deps.includes('settings') && settings !== undefined) callback({ settings })
-        return () => {}
-      },
-      // The session/agent event feeds: nothing emits in these tests.
-      on: () => () => {},
-      // No jobs/agents services: the jobs routes degrade to a 503.
-      get: () => undefined,
-    }
-    apply(ctx as never)
-    return routes.find(route => route.path === '/sidebar/api')!
-  }
-
-  const invoke = async (route: SidebarWebRoute, method: string, payload: unknown): Promise<{
-    ok: boolean
-    value?: unknown
-    error?: { code?: string; message: string }
-  }> => {
-    const body = Buffer.from(JSON.stringify(payload))
-    const req = {
-      method: 'POST',
-      url: `/sidebar/api/${method}`,
-      headers: { host: '127.0.0.1:3080' },
-      [Symbol.asyncIterator]: async function* () { yield body },
-    } as never
-    const out: { status: number; body: string } = { status: 200, body: '' }
-    const res = {
-      writeHead: (status: number) => { out.status = status },
-      end: (chunk: unknown) => { out.body += String(chunk ?? '') },
-    } as never
-    await route.handler(req, res)
-    return JSON.parse(out.body) as { ok: boolean; value?: unknown; error?: { code?: string; message: string } }
-  }
-
   it('serves the schema defaults when the settings service is absent', async () => {
     const route = mountWithSettings(undefined)
     const result = await invoke(route, 'settings.get', {})
@@ -721,7 +743,7 @@ describe('side card settings routes', () => {
     expect(result.value).toEqual({ value: undefined, revision: undefined, externalDisable: false })
   })
 
-  it('reports externalDisable false when the aionui namespace is absent', async () => {
+  it('reports externalDisable false when the aionui entry is absent', async () => {
     const route = mountWithSettings(createFakeSettings())
     const result = await invoke(route, 'settings.get', {})
     expect(result.ok).toBe(true)
@@ -735,44 +757,90 @@ describe('side card settings routes', () => {
     expect((result.value as { externalDisable?: boolean }).externalDisable).toBe(true)
   })
 
-  it('reads the resolved prefs and writes a patch through the seam', async () => {
+  it('passes the entry form through and writes a patch back into it', async () => {
     const route = mountWithSettings(createFakeSettings())
     const read = await invoke(route, 'settings.get', {})
     expect(read.ok).toBe(true)
-    expect(read.value).toEqual({
-      value: {
-        autoOpenSubagent: true,
-        autoOpenJobs: true,
-        agentOpenTools: false,
-        editorExplorer: false,
-        workspaceFence: true,
-        // The route serves the SCHEMA-resolved document, and these three
-        // title-bar fields are declared without a schema default on purpose
-        // (the client's parsePrefs supplies `auto` / '' instead, which is
-        // what lets a document predating them migrate rather than flip).
-        titleBarCompat: false,
-        titleBarStripPx: 40,
-        htmlViewerNoSandbox: false,
-        htmlViewerDefaultUnsafe: false,
-        browserInterceptLinks: true,
-        browserInterceptHttp: true,
-        browserInterceptHttps: false,
-        // The enable-switch maps default to {} (everything on).
-        tabsEnabled: {},
-        viewersEnabled: {},
-        // The plugin-owned settings map defaults to {} too.
-        pluginSettings: {},
-      },
-      revision: 0,
-      externalDisable: false,
+    const view = read.value as { value: Record<string, unknown>; revision: number }
+    expect(view.revision).toBe(0)
+    // The form belongs to the ENTRY, so what the route reports is exactly the
+    // field set this plugin's own preference contract declares.
+    expect(Object.keys(view.value).sort()).toEqual(Object.keys(SIDEBAR_PREFS_DEFAULTS).sort())
+    expect(view.value).toMatchObject({
+      autoOpenSubagent: true,
+      autoOpenJobs: true,
+      agentOpenTools: false,
+      editorExplorer: false,
+      workspaceFence: true,
+      // These title-bar fields are declared without a schema default on
+      // purpose, so a document predating them migrates rather than flips.
+      titleBarCompat: false,
+      titleBarStripPx: 40,
+      htmlViewerNoSandbox: false,
+      htmlViewerDefaultUnsafe: false,
+      // The enable-switch maps default to {} (everything on).
+      tabsEnabled: {},
+      viewersEnabled: {},
+      // The plugin-owned settings map defaults to {} too.
+      pluginSettings: {},
     })
 
     const written = await invoke(route, 'settings.update', { patch: { agentOpenTools: true } })
     expect(written.ok).toBe(true)
-    const view = written.value as { value: { agentOpenTools: boolean; titleBarStripPx: number }; revision: number }
-    expect(view.value.agentOpenTools).toBe(true)
-    expect(view.value.titleBarStripPx).toBe(40)
-    expect(view.revision).toBe(1)
+    const after = written.value as { value: { agentOpenTools: boolean; titleBarStripPx: number }; revision: number }
+    expect(after.value.agentOpenTools).toBe(true)
+    expect(after.value.titleBarStripPx).toBe(40)
+    expect(after.revision).toBe(1)
+  })
+
+  it('imports a pre-0.1.7 settings.yaml section once, keeping only declared fields', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'dsh-sidebar-legacy-prefs-'))
+    // DSH renames the retired document to `.imported` before importing any
+    // section, and it re-imports by SAME id — this section is keyed by the
+    // package name, which never matches the row id, so it is left behind. The
+    // unknown fields are the ones this release no longer declares; forwarding
+    // them would reject the whole patch and lose the preferences.
+    writeFileSync(join(home, 'settings.yaml.imported'), [
+      'dsh-better-sidebar:',
+      '  agentOpenTools: true',
+      '  titleBarStripPx: 22',
+      '  terminalFontSize: 13',
+      '  browserInterceptHttp: false',
+      'other-plugin:',
+      '  irrelevant: true',
+      '',
+    ].join('\n'))
+    try {
+      const settings = createFakeSettings()
+      mountWithSettings(settings, home)
+      // The import is fire-and-forget so a file read can never block loading;
+      // let its read and microtasks settle before asserting.
+      await new Promise(resolve => setTimeout(resolve, 100))
+      const row = settings.describe().find(candidate => candidate.ns === ENTRY_ID)
+      expect(row?.value).toMatchObject({ agentOpenTools: true, titleBarStripPx: 22 })
+      expect(row?.value).not.toHaveProperty('terminalFontSize')
+      expect(row?.value).not.toHaveProperty('browserInterceptHttp')
+      expect(row?.revision).toBe(1)
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+
+  it('leaves a row that already has user values alone', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'dsh-sidebar-legacy-skip-'))
+    writeFileSync(join(home, 'settings.yaml'), 'dsh-better-sidebar:\n  agentOpenTools: true\n')
+    try {
+      const settings = createFakeSettings({ [ENTRY_ID]: { editorExplorer: true } })
+      mountWithSettings(settings, home)
+      await new Promise(resolve => setTimeout(resolve, 100))
+      const row = settings.describe().find(candidate => candidate.ns === ENTRY_ID)
+      // The row's own user layer wins: the import must never overwrite a value
+      // set after the upgrade.
+      expect(row?.value).toMatchObject({ editorExplorer: true, agentOpenTools: false })
+      expect(row?.revision).toBe(0)
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
   })
 
   it('disarms the workspace fence for the fs routes when the pref is off', async () => {
@@ -825,28 +893,29 @@ describe('side card settings routes', () => {
 })
 
 describe('agent sidebar-open tool gating', () => {
-  it('injects the one open tool only when the side-card setting is enabled (default off)', () => {
+  /**
+   * DSH 0.1.7 emits its settings change on the settings service's own context,
+   * which is not an ancestor of this plugin's fiber, so the gate cannot watch
+   * an event. It is re-evaluated whenever the client re-reads the form instead
+   * — which is exactly what the fenced `settings.get` route below does, and
+   * what the Side card page does on every `settings/document-updated` push.
+   */
+  const gatingCtx = (enabled: () => boolean, routes: SidebarWebRoute[]) => {
     let registered = 0
     let disposed = 0
-    const live = (): number => registered - disposed
-    const watcherRef: { current: (() => void) | null } = { current: null }
-    let enabled = false
     const settings = {
-      register() {
-        return {
-          get: () => ({ agentOpenTools: enabled, tabsEnabled: {} }),
-          watch: (callback: () => void) => { watcherRef.current = callback; return () => {} },
-          update: async () => {},
-          replace: async () => {},
-        }
-      },
-      describe: () => [],
+      describe: () => [{
+        ns: ENTRY_ID,
+        value: { ...SIDEBAR_PREFS_DEFAULTS, agentOpenTools: enabled() },
+        revision: 0,
+      }],
       async update() {},
+      configure: () => () => {},
     }
     const ctx = {
       webRuntime: { trustedHosts: [] },
       webServer: {
-        register: (route: SidebarWebRoute) => { void route; return () => {} },
+        register: (route: SidebarWebRoute) => { routes.push(route); return () => {} },
         registerUpgrade: (route: SidebarWebUpgradeRoute) => { void route; return () => {} },
       },
       sessions: { get: () => undefined },
@@ -856,27 +925,41 @@ describe('agent sidebar-open tool gating', () => {
         if (deps.includes('settings')) callback({ settings })
         return () => {}
       },
-      // The session/agent event feeds: nothing emits in these tests.
       on: () => () => {},
       get: () => undefined,
+      fiber: PLUGIN_FIBER,
+      loader: {
+        entries: () => [{ options: { id: ENTRY_ID, name: 'dsh-better-sidebar' }, fiber: PLUGIN_FIBER }],
+      },
+      logger: { info: () => {}, warn: () => {}, debug: () => {}, error: () => {} },
     }
-    apply(ctx as never)
-    // Default off: no open tool is registered even though the settings service is mounted.
-    expect(live()).toBe(0)
-    // Flipping the setting on registers the single sidebar_open tool.
+    return { ctx, live: () => registered - disposed, registrations: () => registered, disposals: () => disposed }
+  }
+
+  it('injects the one open tool only when the side-card setting is enabled (default off)', async () => {
+    let enabled = false
+    const routes: SidebarWebRoute[] = []
+    const harness = gatingCtx(() => enabled, routes)
+    apply(harness.ctx as never)
+    const route = routes.find(candidate => candidate.path === '/sidebar/api')!
+    // Default off: no open tool is registered even though settings is mounted.
+    expect(harness.live()).toBe(0)
+    // Switching the setting on and re-reading the form registers the one tool.
     enabled = true
-    watcherRef.current?.()
-    expect(live()).toBe(1)
-    expect(disposed).toBe(0)
-    // Flipping it back off unregisters it (and drains the undelivered queue).
+    await invoke(route, 'settings.get', {})
+    expect(harness.live()).toBe(1)
+    expect(harness.disposals()).toBe(0)
+    // Switching it back off unregisters it (and drains the undelivered queue).
     enabled = false
-    watcherRef.current?.()
-    expect(live()).toBe(0)
-    expect(disposed).toBe(1)
-    // And a redundant toggle registers it fresh (no double-registration).
+    await invoke(route, 'settings.get', {})
+    expect(harness.live()).toBe(0)
+    expect(harness.disposals()).toBe(1)
+    // A redundant re-read registers it fresh (no double-registration).
     enabled = true
-    watcherRef.current?.()
-    expect(live()).toBe(1)
-    expect(registered).toBe(2)
+    await invoke(route, 'settings.get', {})
+    expect(harness.live()).toBe(1)
+    await invoke(route, 'settings.get', {})
+    expect(harness.live()).toBe(1)
+    expect(harness.registrations()).toBe(2)
   })
 })

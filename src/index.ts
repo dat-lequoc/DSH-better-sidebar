@@ -17,10 +17,10 @@ import { basename, dirname, extname, isAbsolute, join } from 'node:path'
 import type { IncomingMessage } from 'node:http'
 import type { Duplex } from 'node:stream'
 import { WebSocket, WebSocketServer } from 'ws'
-import type { Context, SidebarHttpRequest, SidebarSessionEvent } from './context-types.ts'
+import { parse as parseYaml } from 'yaml'
+import type { Context, SidebarHttpRequest, SidebarSessionEvent, SidebarSettingsService } from './context-types.ts'
 import {
   Config,
-  PrefsSchema,
   resolveSidebarConfig,
   SIDEBAR_PREFS_DEFAULTS,
   SIDEBAR_PREFS_NS,
@@ -36,6 +36,7 @@ import { searchFiles } from './fs-search.ts'
 import { decodeHtmlUrl } from './html-route.ts'
 import { isTrustedApiRequest } from './trust-fence.ts'
 import { registerBundleRoute } from './bundle-route.ts'
+import { createDirectoryWatchers, type DirectoryWatchers } from './fs-watch.ts'
 import { launchExternal } from './open-external.ts'
 import * as git from './git.ts'
 import { SettingsConflictError } from '@deepseek-ai/dsh-settings'
@@ -470,12 +471,14 @@ function buildApi(
       const window = filtered.length > CHANGES_EVENTS_CAP ? filtered.slice(filtered.length - CHANGES_EVENTS_CAP) : filtered
       return { events: window, lastSeq: window.at(-1)?.seq ?? afterSeq }
     },
-    // Background jobs: read one job's output (a REPLAY of what the model
-    // has read so far, from the owner session's event log — the model's
-    // job_output cursor is never touched, so the human pane can never steal
-    // the agent's bytes), and kill one job. The job LIST itself arrives
-    // through the harness's session/jobs push mirror, so no list route
-    // exists. Kill is fenced to the owning session by the jobs registry.
+    // Background jobs: list the caller's own jobs, read one job's output (a
+    // REPLAY of what the model has read so far, from the owner session's
+    // event log — the model's job_output cursor is never touched, so the
+    // human pane can never steal the agent's bytes), and kill one job. The
+    // list route exists because DSH 0.1.7 deleted the session/jobs push
+    // mirror the Tasks page used to read. Kill is fenced to the owning
+    // session by the jobs registry.
+    'jobs.list': (payload) => jobsApi.list(payload),
     'jobs.output': (payload) => jobsApi.output(payload),
     'jobs.kill': (payload) => jobsApi.kill(payload),
     // Subagent live previews: one batch request per refresh; the route folds
@@ -536,6 +539,123 @@ function buildApi(
   }
 }
 
+/** The npm package name of this plugin, exactly as its Loader row declares it. */
+const SIDEBAR_PACKAGE_NAME = 'dsh-better-sidebar'
+
+/**
+ * Profile entry id of the sibling `dsh-web-ui` right panel this sidebar yields
+ * to when it is the active provider. Kept as a literal: it is that plugin's
+ * own mount choice, not a contract this plugin can derive.
+ */
+const AIONUI_PANEL_ENTRY = 'aionui-panel'
+
+/** The file-backed settings document DSH 0.1.7 retired. */
+const LEGACY_SETTINGS_FILE = 'settings.yaml'
+
+/**
+ * The Loader entry id of this plugin's own row.
+ *
+ * DSH 0.1.7 addresses settings forms by profile entry id, and that id is a
+ * mount choice rather than a package property: this bundle's patch uses
+ * `better-sidebar`, while an aggregate bundle mounts the same package under
+ * its own id. The row is therefore identified by the package name plus fiber
+ * identity, with an enabled same-name row as the fallback for the moment
+ * before the fiber is attached.
+ * @param ctx - the plugin's own context.
+ * @returns the row's configured id, or undefined when no row can be identified.
+ */
+function ownEntryId(ctx: Context): string | undefined {
+  let fallback: string | undefined
+  try {
+    for (const entry of ctx.loader.entries()) {
+      const id = entry.options.id
+      if (entry.options.name !== SIDEBAR_PACKAGE_NAME || typeof id !== 'string' || id === '') continue
+      if (entry.fiber === ctx.fiber) return id
+      if (entry.disabled !== true && fallback === undefined) fallback = id
+    }
+  } catch {
+    // A loader that does not expose its entries leaves the settings face
+    // absent; the client keeps the schema defaults, which is also what a
+    // deployment without the settings service does.
+    return undefined
+  }
+  return fallback
+}
+
+/**
+ * Read this plugin's preference section out of the retired `settings.yaml`.
+ *
+ * Both names are tried: the settings service renames the document before it
+ * imports any section, so on a host that already booted once only the
+ * `.imported` copy is left, while a host migrated for the first time may still
+ * be mid-import.
+ * @param home - the harness home the retired document lives under.
+ * @returns the section's own fields, or undefined when no usable section exists.
+ */
+async function readLegacyPrefs(home: string): Promise<Record<string, unknown> | undefined> {
+  const declared = new Set(Object.keys(Config.dict ?? {}))
+  for (const name of [`${LEGACY_SETTINGS_FILE}.imported`, LEGACY_SETTINGS_FILE]) {
+    let text: string
+    try {
+      text = await readFile(join(home, name), 'utf8')
+    } catch {
+      continue
+    }
+    let document: unknown
+    try {
+      document = parseYaml(text)
+    } catch {
+      continue
+    }
+    if (document === null || typeof document !== 'object' || Array.isArray(document)) continue
+    const section = (document as Record<string, unknown>)[SIDEBAR_PREFS_NS]
+    if (section === null || typeof section !== 'object' || Array.isArray(section)) continue
+    // Drop fields the current row schema no longer declares (the retired
+    // terminal and browser keys, `defaultWidthPercent`, …). A form write
+    // validates every key against the schema, so one unknown field would
+    // reject the whole patch and lose exactly what this import exists to save.
+    const filtered = Object.fromEntries(
+      Object.entries(section as Record<string, unknown>).filter(([key]) => declared.has(key)),
+    )
+    if (Object.keys(filtered).length > 0) return filtered
+  }
+  return undefined
+}
+
+/**
+ * One-time import of the Side card preferences a pre-0.1.7 release persisted.
+ *
+ * The 0.1.6 line stored them through the file-backed settings provider, in
+ * `$DSH_HOME/settings.yaml` under a `dsh-better-sidebar` section. This release
+ * deletes that provider; its migration renames the document to
+ * `settings.yaml.imported` and re-imports each section into the entry of the
+ * SAME id — and because a section key is the package name while the row id is
+ * a mount choice, DSH warns and leaves this section behind. Without this
+ * import every existing user would silently lose their preferences.
+ *
+ * The import runs only while the row's user layer is still empty, so it can
+ * never overwrite a value set after the upgrade, and re-running it is a no-op.
+ * @param ctx - host plugin context (profile home, logger).
+ * @param settings - the settings forms service.
+ * @param ns - this plugin row's entry id.
+ */
+async function importLegacyPrefs(
+  ctx: Context,
+  settings: SidebarSettingsService,
+  ns: string,
+): Promise<void> {
+  const home = ctx.profileContext?.home
+  if (home === undefined) return
+  const row = settings.describe().find(candidate => candidate.ns === ns)
+  if (row === undefined) return
+  const user = row.user
+  if (user !== null && typeof user === 'object' && Object.keys(user).length > 0) return
+  const section = await readLegacyPrefs(home)
+  if (section === undefined) return
+  await settings.update(ns, section)
+  ctx.logger.info('dsh-better-sidebar: imported Side card preferences from %s', LEGACY_SETTINGS_FILE)
+}
+
 /**
  * Plugin body: mount the fenced routes and the sidebar_open push socket.
  * @param ctx - host plugin context (webServer, sessions, webRuntime).
@@ -555,30 +675,36 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
   // `/sidebar/ws/agent-opens` socket.
   const agentOpenRegistry = new AgentOpenRegistry()
 
-  // Register the namespace with the settings provider so the Settings page
-  // (client half) can render and persist the new-conversation defaults. The
-  // DSH settings RPC domain (api-proxy) only serves allowlisted namespaces to
-  // configuration clients, so the client reaches this namespace through the
-  // plugin's own fenced routes below ('settings.get'/'settings.update'),
-  // which call the seam in-process. Deployments without a settings service
-  // simply never fill the face and the client falls back to the defaults.
+  // DSH 0.1.7 replaced the registrable settings namespace with a forms
+  // service over the profile's own entries: a form is addressed by the plugin
+  // ROW's Loader entry id, its schema is this module's exported `Config`, and
+  // its value is the live fiber config. The client still reaches the
+  // preferences through the plugin's own fenced routes below
+  // ('settings.get'/'settings.update'), which now call `describe`/`update`.
+  // Deployments without a settings service simply never fill the face and the
+  // client falls back to the schema defaults.
   let settingsFace: SidebarSettingsFace | undefined
   // The model-facing `sidebar_open` tool is gated on the side-card setting
   // `agentOpenTools` (default off): nothing is injected until the user turns
   // the feature on; turning it off mid-session unregisters the tool.
   let openToolsDisposers: (() => void) | null = null
   ctx.inject(['settings'], (sctx) => {
-    // DSH 0.1.2-alpha.2 validates namespaces at compile time
-    // (SettingsNamespaceInput); the 'dsh-better-sidebar' literal passes, so the
-    // runtime helper this used to call (settingsNamespace) is gone upstream.
-    const ns = SIDEBAR_PREFS_NS
-    // The structural settings mirror types `schema` as unknown, so the
-    // generic is not inferred here; the real service resolves it from the
-    // schemastery schema (PrefsSchema) — narrow the owner scope explicitly.
-    const scope = sctx.settings.register(ns, PrefsSchema) as {
-      get(): SidebarPrefs
-      watch(callback: (next: SidebarPrefs, prev: SidebarPrefs) => void): () => void
+    // The form is the plugin ROW, so the id is whatever mounted this package:
+    // this bundle's patch uses `better-sidebar`, an aggregate bundle mounts
+    // the same package under its own id. A row the loader cannot identify has
+    // no form, so the face stays absent and the client keeps the defaults.
+    const ns = ownEntryId(ctx)
+    if (ns === undefined) {
+      ctx.logger?.warn?.('dsh-better-sidebar: no loader row for this package; Side card preferences stay at defaults')
+      return
     }
+    // The plugin ships its own Side card settings section, so the native
+    // auto-form is opted out — otherwise Settings would render the same ~30
+    // preference fields twice. The policy does not affect reads or writes.
+    ctx.effect(
+      () => sctx.settings.configure({ auto: false }, ctx.fiber),
+      'dsh-better-sidebar: settings page policy',
+    )
     const viewOf = (): { value?: unknown; revision?: number } => {
       const descriptor = sctx.settings.describe({ redactSecrets: true }).find(candidate => candidate.ns === ns)
       return descriptor === undefined
@@ -587,42 +713,33 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     }
     // Mutual exclusion with the dsh-web-ui family right panel: the aionui
     // panel's provider choice (`aionui-panel.rightPanel`) is the authority.
-    // While it resolves to 'aionui-panel', this sidebar must not mount. The
-    // namespace is read through the settings seam like any other registered
-    // section; absent namespace (no aionui installed) = not disabled.
+    // While it resolves to 'aionui-panel', this sidebar must not mount. A form
+    // is addressed by its owner's profile entry id, which for that plugin is
+    // the string its pre-0.1.7 section already used; absent row (no aionui
+    // installed) = not disabled.
     const externalDisable = (): boolean => {
       const descriptor = sctx.settings.describe({ redactSecrets: true })
-        .find(candidate => candidate.ns === 'aionui-panel')
+        .find(candidate => candidate.ns === AIONUI_PANEL_ENTRY)
       const value = descriptor?.value as { rightPanel?: unknown } | undefined
       return value?.rightPanel === 'aionui-panel'
-    }
-    settingsFace = {
-      get: viewOf,
-      externalDisable,
-      update: async (patch, expectedRevision) => {
-        await sctx.settings.update(ns, patch, expectedRevision)
-        return viewOf()
-      },
     }
     // The model-facing open tool is gated on `agentOpenTools`
     // (default off): nothing is injected until the user turns the feature
     // on, and turning it off mid-session unregisters the tool and drops the
     // queued (undelivered) open requests. Already-delivered opens keep their
     // tabs — the tools' only lever is the queue, not the rendered state.
+    const prefsOf = (): SidebarPrefs => {
+      const value = viewOf().value
+      return value !== null && typeof value === 'object' ? value as SidebarPrefs : SIDEBAR_PREFS_DEFAULTS
+    }
     const syncOpenToolsGate = (): void => {
-      if (scope.get().agentOpenTools) {
+      if (prefsOf().agentOpenTools === true) {
         if (openToolsDisposers === null) {
           openToolsDisposers = registerOpenTool(
             ctx,
             agentOpenRegistry,
             (sessionId) => sessionCwdOf(ctx, sessionId),
-            () => {
-              const view = settingsFace?.get()
-              const value = view?.value
-              return value !== null && typeof value === 'object'
-                ? value as SidebarPrefs
-                : SIDEBAR_PREFS_DEFAULTS
-            },
+            prefsOf,
           )
         }
       } else if (openToolsDisposers !== null) {
@@ -631,10 +748,26 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
         agentOpenRegistry.drainAll()
       }
     }
+    settingsFace = {
+      // Two triggers cover what the 0.1.6 namespace watch used to: the
+      // plugin's own writes flow through `update`, and the client re-reads
+      // this face on every `settings/document-updated` push. (The host emits
+      // that event on the settings service's own context, which is not an
+      // ancestor of this plugin's fiber, so a listener here would never run.)
+      get: () => { syncOpenToolsGate(); return viewOf() },
+      externalDisable,
+      update: async (patch, expectedRevision) => {
+        await sctx.settings.update(ns, patch, expectedRevision)
+        return viewOf()
+      },
+    }
     syncOpenToolsGate()
-    // Settings commits re-evaluate the open tool's gate (the gate is
-    // idempotent and owns its own disposer).
-    scope.watch(() => { syncOpenToolsGate() })
+    // A pre-0.1.7 release persisted these preferences through the file-backed
+    // settings provider, which this release deleted. Import that section once.
+    void importLegacyPrefs(ctx, sctx.settings, ns).catch((error: unknown) => {
+      ctx.logger?.warn?.('dsh-better-sidebar: legacy preference import skipped')
+      ctx.logger?.warn?.(error)
+    })
   })
 
   // ── JSON API ────────────────────────────────────────────────────────────
@@ -849,11 +982,128 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     },
   }), 'dsh-better-sidebar: agent-opens push WebSocket')
 
+  // ── File-tree directory watch WebSocket ────────────────────────────────
+  // The file tree lists a folder when it is expanded and would otherwise stay
+  // stale for the rest of the session. One socket per session carries the
+  // reader's expanded-folder set; the host watches exactly those directories
+  // and pushes a debounced notice per change, so the tree re-lists in place.
+  // Paths are resolved through the same workspace fence as `fs.tree`, so a
+  // watch can never observe a directory the tree itself could not list.
+  const fsWatchWss = new WebSocketServer({ noServer: true })
+  ctx.effect(() => ctx.webServer.registerUpgrade({
+    path: '/sidebar/ws/fs-watch',
+    handler: (req, socket, head) => {
+      if (!fence(req)) {
+        socket.destroy()
+        return
+      }
+      fsWatchWss.handleUpgrade(req as unknown as IncomingMessage, socket as unknown as Duplex, head as Buffer, (ws) => {
+        void attachFsWatch(ctx, ws, req, () => fenceEnabledOf(() => settingsFace))
+      })
+    },
+  }), 'dsh-better-sidebar: file-tree watch WebSocket')
+
   ctx.effect(() => () => {
     openToolsDisposers?.()
     agentOpenRegistry.dispose()
     agentOpenWss.close()
+    fsWatchWss.close()
   }, 'dsh-better-sidebar: teardown')
+}
+
+/** One `watch` / `unwatch` frame from the file tree. */
+interface FsWatchFrame {
+  op?: unknown
+  path?: unknown
+}
+
+/**
+ * Serve one session's directory-watch socket until it closes.
+ *
+ * Frames are `{ op: 'watch' | 'unwatch', path }`, where `path` is relative to
+ * the session's workspace exactly like `fs.tree`'s. A path that fails
+ * resolution, or a rejection past the watcher cap, is answered with
+ * `{ dir, ok: false }` so the client can stop asking rather than retry.
+ * @param ctx - host plugin context (session cwd, workspace fence).
+ * @param ws - the accepted socket.
+ * @param req - the upgrade request carrying `?sessionId=`.
+ * @param fenceEnabled - whether the workspace containment fence is on.
+ */
+async function attachFsWatch(
+  ctx: Context,
+  ws: WebSocket,
+  req: SidebarHttpRequest,
+  fenceEnabled: () => boolean,
+): Promise<void> {
+  try {
+    const url = new URL(req.url ?? '/', 'http://dsh.internal')
+    const sessionId = url.searchParams.get('sessionId')
+    if (sessionId === null) {
+      ws.close(1008, 'sessionId is required')
+      return
+    }
+    const watchers = createDirectoryWatchers(
+      (event) => {
+        if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ dir: event.dir }))
+      },
+      (dir, error) => {
+        ctx.logger.warn('dsh-better-sidebar: cannot watch %s', dir)
+        ctx.logger.warn(error)
+        if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ dir, ok: false }))
+      },
+    )
+    ws.on('close', () => { watchers.close() })
+    ws.on('error', () => { watchers.close() })
+    ws.on('message', (data) => {
+      void handleFsWatchFrame(ctx, ws, watchers, sessionId, data, fenceEnabled)
+    })
+  } catch (error) {
+    ws.close(1011, error instanceof Error ? error.message : String(error))
+  }
+}
+
+/**
+ * Apply one watch frame.
+ * @param ctx - host plugin context.
+ * @param ws - the owning socket.
+ * @param watchers - the socket's watcher set.
+ * @param sessionId - the session the socket was opened for.
+ * @param data - the raw frame text.
+ * @param fenceEnabled - whether the workspace containment fence is on.
+ */
+async function handleFsWatchFrame(
+  ctx: Context,
+  ws: WebSocket,
+  watchers: DirectoryWatchers,
+  sessionId: string,
+  data: unknown,
+  fenceEnabled: () => boolean,
+): Promise<void> {
+  let frame: FsWatchFrame
+  try {
+    frame = JSON.parse(typeof data === 'string' ? data : String(data)) as FsWatchFrame
+  } catch {
+    return
+  }
+  const path = typeof frame.path === 'string' ? frame.path : undefined
+  if (path === undefined || path === '') return
+  try {
+    const cwd = await sessionCwdOf(ctx, sessionId)
+    const dir = await ensureWorkspacePath(cwd, path, fenceEnabled())
+    if (frame.op === 'unwatch') {
+      watchers.remove(dir)
+      return
+    }
+    if (frame.op !== 'watch') return
+    const ok = watchers.add(dir)
+    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ dir, ok }))
+  } catch (error) {
+    // The tree keeps working without live refresh; a refused path is reported
+    // once so the client stops asking for it.
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ dir: path, ok: false, reason: error instanceof Error ? error.message : String(error) }))
+    }
+  }
 }
 
 /** Push queued `sidebar_open` requests for one session to a connected view. */

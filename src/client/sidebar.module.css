@@ -1581,22 +1581,6 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   color: var(--dsw-alias-label-primary);
 }
 
-.editorImageWrap {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: auto;
-  padding: 12px;
-}
-
-.editorImage {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
 .editorMd {
   flex: 1;
   min-height: 0;

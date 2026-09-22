@@ -58,16 +58,22 @@ const SEEDED_README_FILE = 'readme-style.md'
 const CRASH_STRIP_PATTERNS = [/^dsh-better-sidebar:/, /^\[dsh-better-sidebar\]/]
 
 /**
- * The tab types the plugin itself contributes, plus the host-owned kinds the
+ * The tab types the plugin itself contributes, plus the host-owned kind the
  * guide is asserted to still offer.
  *
- * `terminal` and `browser` are DSH 0.1.6's own right-Sidebar types: this
- * plugin deliberately ships neither (it used to own both), so the guide must
- * show exactly ONE entry for each when the host mounts those packages — a
- * second entry would mean the plugin is shadowing the host again.
+ * `terminal` is DSH's own right-Sidebar type: this plugin deliberately ships
+ * neither terminal nor browser (it used to own both), so the guide must show
+ * exactly ONE `terminal` entry when the host mounts that package — a second
+ * entry would mean the plugin is shadowing the host again.
+ *
+ * `browser` is deliberately NOT in this list and is asserted ABSENT below: DSH
+ * 0.1.7 disables `@deepseek-ai/dsh-client-ui-sidebar-browser` outside the
+ * desktop profile ("Web profiles opt in; Desktop retains sandboxed HTTP(S)
+ * Browser tabs"), and every lane here drives the web profile. Listing it would
+ * demand a guide entry the host itself has stopped offering.
  */
 const PLUGIN_TABS = ['files', 'git', 'subagent', 'sidechat'] as const
-const HOST_OWNED_TABS = ['terminal', 'browser'] as const
+const HOST_OWNED_TABS = ['terminal'] as const
 const NATIVE_TABS: readonly string[] = [...PLUGIN_TABS, ...HOST_OWNED_TABS]
 
 let api: APIRequestContext
@@ -297,6 +303,15 @@ test('plugin mounts into the DSH shell and survives a built-in tab sweep', async
       `the plugin's native tab type "${kind}" is not offered by the guide`,
     ).toHaveCount(1)
   }
+
+  // The browser kind the plugin handed to the host is NOT offered on a web
+  // profile: DSH 0.1.7 mounts its browser package only for the desktop
+  // profile. Pinned rather than merely omitted, so a future lane that starts
+  // seeing a browser entry learns the host changed its mind.
+  await expect(
+    page.locator('[data-sidebar-right-guide-entry="browser"]'),
+    'the web profile must not offer a browser guide entry at DSH 0.1.7',
+  ).toHaveCount(0)
 
   // Sweep every type through the guide. Each open mounts a real viewer (the
   // editor and mermaid chunks arrive lazily); a failure anywhere surfaces as a

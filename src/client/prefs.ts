@@ -82,15 +82,6 @@ export function parsePrefs(value: unknown): SidebarPrefs {
     htmlViewerDefaultUnsafe: typeof record.htmlViewerDefaultUnsafe === 'boolean'
       ? record.htmlViewerDefaultUnsafe
       : SIDEBAR_PREFS_DEFAULTS.htmlViewerDefaultUnsafe,
-    browserInterceptLinks: typeof record.browserInterceptLinks === 'boolean'
-      ? record.browserInterceptLinks
-      : SIDEBAR_PREFS_DEFAULTS.browserInterceptLinks,
-    browserInterceptHttp: typeof record.browserInterceptHttp === 'boolean'
-      ? record.browserInterceptHttp
-      : SIDEBAR_PREFS_DEFAULTS.browserInterceptHttp,
-    browserInterceptHttps: typeof record.browserInterceptHttps === 'boolean'
-      ? record.browserInterceptHttps
-      : SIDEBAR_PREFS_DEFAULTS.browserInterceptHttps,
     tabsEnabled: booleanMapOf(record.tabsEnabled),
     viewersEnabled: booleanMapOf(record.viewersEnabled),
     pluginSettings: pluginSettingsMapOf(record.pluginSettings),

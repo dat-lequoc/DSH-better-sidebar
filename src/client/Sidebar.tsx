@@ -27,7 +27,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type ReactNode } from 'react'
 import { useSyncExternalStore } from 'react'
 import clsx from 'clsx'
-import { IconCloseFill14, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCloseFillRegular, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context } from '../context-types.ts'
 import { referenceInChat as referenceInChatShared } from './reference-in-chat.ts'
 import {
@@ -47,6 +47,7 @@ import { computeTitleBarStrip } from './titlebar-strip.ts'
 import { TabContent, buildNewTabOptions } from './sidebar/TabContent.tsx'
 import { useCenterColumn } from './sidebar/use-center-column.ts'
 import { useHostFeeds } from './sidebar/use-host-feeds.ts'
+import { mountedSessions } from './native/surface.ts'
 import type { TabDragPayload } from './TabBar.tsx'
 import { t } from './locales.ts'
 import { api } from './api.ts'
@@ -195,7 +196,17 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
     useMemo(() => (callback: () => void) => ctx.sessions.list.subscribe(callback), [ctx]),
     useCallback(() => ctx.sessions.list.getSnapshot(), [ctx]),
   )
-  const current = sessionList.current
+  // Which conversation is on screen. The session-list snapshot has no
+  // current-session field in ANY DSH release, so the old read of one was
+  // permanently `undefined` and `store.setSession` below never bound a
+  // session: DSH 0.1.7 publishes the mounted seat instead
+  // (`ctx.sidebarRight.mounted`), and that is what the per-session state
+  // follows.
+  const mounted = useMemo(() => mountedSessions(ctx), [ctx])
+  const current = useSyncExternalStore(
+    useCallback((callback: () => void) => mounted.subscribe(callback), [mounted]),
+    useCallback(() => mounted.getSnapshot(), [mounted]),
+  )
 
   // Per-session sidebar state.
   const snapshot = useSyncExternalStore(
@@ -709,7 +720,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
             aria-label={t('collapseBottomPanel')}
             onClick={() => { store.reduce(toggleBottomPanel) }}
           >
-            <IconCloseFill14 />
+            <IconCloseFillRegular size={14} />
           </button>
         </Tooltip>
         <div className={css.panelBody}>

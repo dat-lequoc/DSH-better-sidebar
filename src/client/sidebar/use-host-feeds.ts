@@ -1,21 +1,33 @@
 /**
  * Host-feed subscriptions (extracted from Sidebar.tsx, behavior identical):
- * the WebSocket push (agent opens) and the session-list driven
+ * the WebSocket push (agent opens) and the session-list / job-list driven
  * auto-activation triggers (subagent, background jobs, topology
  * jump-back). All of it reacts to the host's live feeds for the CURRENT
  * session; the sidebar shell only consumes the returned jump-back ref.
  */
-import { useEffect, useRef } from 'react'
-import type { Context, SidebarSessionList } from '../../context-types.ts'
+import { useCallback, useEffect, useRef } from 'react'
+import type { Context, SidebarJobView, SidebarSessionList } from '../../context-types.ts'
 import type { SidebarStore } from '../state.ts'
 import { isNarrowWidth } from '../breakpoints.ts'
 import { detectNewDirectSubagent } from '../subagent-detect.ts'
 import { detectNewJob } from '../subagent-jobs.ts'
+import { api } from '../api.ts'
+import { mountedSessionId } from '../native/surface.ts'
+import { usePolling } from '../use-polling.ts'
 import { t } from '../locales.ts'
 
 /** How many consecutive reconnect failures stop the agent-opens push loop
  * (the loop restarts on session switch). */
 const FAILURE_LIMIT = 3
+
+/**
+ * Background-job poll cadence (ms) for the job auto-open trigger. DSH 0.1.7
+ * removed the client session snapshot's jobs mirror, so the trigger reads the
+ * plugin's `jobs.list` route on a timer instead of reacting to a push. One
+ * in-process registry read per tick bounds the auto-open latency at this
+ * value.
+ */
+const JOB_POLL_MS = 2_000
 
 /**
  * Subagent auto-open debounce (ms). The host delivers a new child's origin
@@ -66,8 +78,12 @@ function activateTasksPage(ctx: Context, sessionId: string, options: { backgroun
   const column = ctx.get('sidebarRight') as unknown as NativeColumnFace | undefined
   const park = options.background
     // The face acts on the MOUNTED session: parking is only meaningful (and
-    // only safe) when the activation targets the one on screen.
-    && ctx.sessions.list.getSnapshot().current === sessionId
+    // only safe) when the activation targets the one on screen. "On screen"
+    // is the native surface's own mounted seat — the session list has no
+    // current-session field — and an absent seat (a global panel, or a host
+    // without the feed) reads as "not this session": the plugin then leaves
+    // the column alone rather than toggling one it is not drawing.
+    && mountedSessionId(ctx) === sessionId
     && isNarrowWidth(window.innerWidth)
     // Only a column the user had COLLAPSED is put back: an expanded one is in
     // use, and closing it under the user would be worse than the takeover.
@@ -211,25 +227,50 @@ export function useHostFeeds(feeds: {
 
   /**
    * Job auto-activation: the moment a NEW background job appears for the
-   * current conversation (a job id the previous snapshot lacked), the
+   * current conversation (a job id the previous read of its list lacked), the
    * auto-open pref is on, and the Tasks tab type is enabled, activate the Tasks
    * page that contains the background-jobs section — in DSH's native right
    * Sidebar, expanded on wide viewports and parked on narrow ones exactly like
    * the subagent trigger ({@link activateTasksPage}). Unlike that trigger
    * (0 → N only), ANY new job id triggers: the agent may start several jobs in
-   * one session, and each should surface. A fresh page load never triggers —
-   * its baseline starts at the current snapshot.
+   * one session, and each should surface.
+   *
+   * The list is POLLED: DSH 0.1.7 stopped mirroring background jobs into the
+   * client session snapshot, so the registry (fenced per OWNER session) is
+   * read through the plugin's `jobs.list` route. A fresh page load never
+   * triggers — the FIRST successful read only arms the baseline — and a host
+   * without the jobs service (503) leaves the baseline unarmed, so the first
+   * list that does arrive is never mistaken for new work.
    */
-  const jobBaselineRef = useRef<SidebarSessionList | undefined>(undefined)
-  useEffect(() => {
+  const jobBaselineRef = useRef<readonly SidebarJobView[] | undefined>(undefined)
+  // A session switch voids the previous session's baseline BEFORE the poller
+  // below restarts on the new id (effects run in declaration order).
+  useEffect(() => { jobBaselineRef.current = undefined }, [sessionId])
+  const pollJobs = useCallback(async (signal: AbortSignal): Promise<void> => {
+    if (sessionId === undefined) return
+    let jobs: readonly SidebarJobView[]
+    try {
+      const result = await api.jobsList(sessionId, signal)
+      jobs = result.jobs
+    } catch {
+      // No jobs service, or a dropped read: keep the last baseline and let the
+      // next tick retry (never treat an unreadable list as an empty one).
+      return
+    }
+    if (signal.aborted) return
     const prev = jobBaselineRef.current
-    jobBaselineRef.current = sessionList
-    if (sessionId === undefined || prev === undefined) return
-    if (!detectNewJob(prev, sessionList, sessionId)) return
+    jobBaselineRef.current = jobs
+    if (prev === undefined) return
+    if (!detectNewJob(prev, jobs)) return
     if (!store.getPrefs().autoOpenJobs) return
     if (ctx.get('betterSidebar')?.isTabEnabled('subagent') === false) return
     activateTasksPage(ctx, sessionId, { background: true })
-  }, [sessionList, sessionId, store, ctx])
+  }, [sessionId, store, ctx])
+  usePolling(sessionId !== undefined, pollJobs, {
+    intervalMs: JOB_POLL_MS,
+    mode: 'self-scheduling',
+    immediate: true,
+  })
 
   /**
    * Topology jump-back: clicking a subagent node on the Subagent page calls

@@ -140,7 +140,7 @@ dsh_cli() {
   if command -v "$DSH_CMD" >/dev/null 2>&1; then
     printf '%s' "$DSH_CMD"
   elif command -v npx >/dev/null 2>&1; then
-    printf 'npx -y --package @deepseek-ai/dsh dsh'
+    printf 'npx -y --package @deepseek-ai/dsh@0.1.7-alpha.1 dsh'
   else
     die "未找到 dsh 或 npx。请先安装 DSH（并确保 Node/npm 可用），或用 DSH_CMD 指定 dsh 路径。"
   fi

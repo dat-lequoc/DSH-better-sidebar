@@ -44,9 +44,6 @@ describe('side card preferences', () => {
         titleBarStripPx: 40,
         htmlViewerNoSandbox: false,
         htmlViewerDefaultUnsafe: false,
-        browserInterceptLinks: true,
-        browserInterceptHttp: true,
-        browserInterceptHttps: false,
         tabsEnabled: {},
         viewersEnabled: {},
         pluginSettings: {},
@@ -68,9 +65,6 @@ describe('side card preferences', () => {
         titleBarStripPx: 40,
         htmlViewerNoSandbox: false,
         htmlViewerDefaultUnsafe: false,
-        browserInterceptLinks: true,
-        browserInterceptHttp: true,
-        browserInterceptHttps: false,
         tabsEnabled: {},
         viewersEnabled: {},
         pluginSettings: {},
@@ -92,9 +86,6 @@ describe('side card preferences', () => {
         titleBarStripPx: 40,
         htmlViewerNoSandbox: false,
         htmlViewerDefaultUnsafe: false,
-        browserInterceptLinks: true,
-        browserInterceptHttp: true,
-        browserInterceptHttps: false,
         tabsEnabled: {},
         viewersEnabled: {},
         pluginSettings: {},
@@ -183,22 +174,6 @@ describe('side card preferences', () => {
     // In-range values survive verbatim.
     expect((await loadPrefs(wire({ titleBarStripPx: 0 }))).titleBarStripPx).toBe(0)
     expect((await loadPrefs(wire({ titleBarStripPx: 64 }))).titleBarStripPx).toBe(64)
-  })
-
-  it('defaults the link-takeover protocol flags: http on, https off, master on', async () => {
-    // Absent or malformed → the per-protocol defaults.
-    expect((await loadPrefs(wire({}))).browserInterceptLinks).toBe(true)
-    expect((await loadPrefs(wire({}))).browserInterceptHttp).toBe(true)
-    expect((await loadPrefs(wire({}))).browserInterceptHttps).toBe(false)
-    expect((await loadPrefs(wire({ browserInterceptHttp: 'yes' }))).browserInterceptHttp).toBe(true)
-    expect((await loadPrefs(wire({ browserInterceptHttps: 0 }))).browserInterceptHttps).toBe(false)
-    // Explicit booleans survive verbatim.
-    expect((await loadPrefs(wire({ browserInterceptHttp: false }))).browserInterceptHttp).toBe(false)
-    expect((await loadPrefs(wire({ browserInterceptHttps: true }))).browserInterceptHttps).toBe(true)
-    // The master is independent of the protocol flags (an explicit master
-    // false stays "never take over" regardless of the flags).
-    expect((await loadPrefs(wire({ browserInterceptLinks: false, browserInterceptHttp: true, browserInterceptHttps: true }))))
-      .toMatchObject({ browserInterceptLinks: false, browserInterceptHttp: true, browserInterceptHttps: true })
   })
 
   it('validates the per-tab / per-viewer enable maps (absent keys mean enabled)', async () => {

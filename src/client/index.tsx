@@ -21,7 +21,7 @@ import { createNativeTabRecords } from './native/tab-adapter.tsx'
 import { registerNativeSurface } from './native/index.ts'
 import { registerBottomToggle } from './sidebar/bottom-toggle.tsx'
 import { createNativeSurface } from './native/surface.ts'
-import { registerLinkInterception } from './link-intercept.ts'
+import { isTargetAvailable, openInterceptedLink, registerLinkInterception, shouldTakeOverLink } from './link-intercept.ts'
 import { registerImeGuard } from './ime-guard.ts'
 import { registerSettingsNavIcon } from './settings-nav-icon.ts'
 import { loadBootDecision } from './prefs.ts'
@@ -338,36 +338,42 @@ export function apply(ctx: Context): void {
     ctx.effect(
       () => {
         try {
-          // External http(s) links in the chat/GUI open the sidebar instead
-          // of a new window. Gated on the browserInterceptLinks MASTER pref,
-          // the URL's protocol flag (browserInterceptHttp / Https — https
-          // defaults OFF: most https sites refuse iframe embedding), and the
-          // target tab's enable switch; Ctrl/Cmd+click always bypasses. The
-          // target is the first registered tab whose `urlTarget` claims the
-          // URL (enabled tabs only), else the built-in browser tab.
+          // External links are taken over ONLY when a registered tab type
+          // claims the URL through `urlTarget` (and this sidebar is not
+          // suspended); Ctrl/Cmd+click and non-http(s) / same-origin links
+          // always bypass. Everything else is left to the host: since DSH
+          // 0.1.7 the destination of a chat link is decided by the user's
+          // `linkOpening` setting plus the host's own browser tab — a kind
+          // the Web profile leaves disabled — so `preventDefault`ing an
+          // unclaimed link would swallow it (the host's `MarkdownAnchor`
+          // does not re-check `defaultPrevented`, and plugin-drawn markdown
+          // — sidechat transcripts, editor previews, HTML previews, diff
+          // panes — would lose the click entirely). Host-rendered chat prose
+          // therefore goes back to the host's `openExternalLink`, and
+          // plugin-drawn markdown to the anchor's own `window.open`.
           const urlTargetOf = (url: URL): string | undefined => {
             const prefs = sidebarStore.getPrefs()
             const enabled = service.getTabs().filter(tab => prefs.tabsEnabled[tab.id] !== false)
             return matchUrlTarget(enabled, url)?.id
           }
           return registerLinkInterception({
-            takeoverEnabled: (url) => {
-              if (sidebarStore.getSuspended()) return false
-              const prefs = sidebarStore.getPrefs()
-              if (prefs.browserInterceptLinks === false) return false
-              const protocolOn = url.protocol === 'https:'
-                ? prefs.browserInterceptHttps !== false
-                : prefs.browserInterceptHttp !== false
-              if (!protocolOn) return false
-              // A plugin claim is the target (already enabled-filtered);
-              // otherwise the built-in browser must be enabled.
-              return urlTargetOf(url) !== undefined || prefs.tabsEnabled['browser'] !== false
-            },
+            takeoverEnabled: (url) => shouldTakeOverLink(url, {
+              suspended: sidebarStore.getSuspended(),
+              resolveTarget: urlTargetOf,
+            }),
             openInSidebar: (url) => {
-              let title: string | undefined
-              try { title = new URL(url).hostname } catch { /* keep the default title */ }
-              const type = urlTargetOf(new URL(url)) ?? 'browser'
-              ctx.get('betterSidebar')?.openTab({ type, url, title })
+              openInterceptedLink(url, {
+                resolveTarget: urlTargetOf,
+                // Re-checked at open time: the claim above and this open are
+                // separate turns, so the type may be gone (plugin unloaded,
+                // switched off) by now.
+                isAvailable: (type) => isTargetAvailable(
+                  type,
+                  service.getTabs(),
+                  sidebarStore.getPrefs().tabsEnabled,
+                ),
+                sidebar: ctx.get('betterSidebar'),
+              })
             },
             selfOrigin: window.location.origin,
           })
