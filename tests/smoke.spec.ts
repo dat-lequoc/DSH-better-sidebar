@@ -727,6 +727,9 @@ const mountWithSettings = (settings?: unknown, home?: string): SidebarWebRoute =
     // fake without these entries has NO settings face at all.
     loader: {
       entries: () => [{ options: { id: ENTRY_ID, name: 'dsh-better-sidebar' }, fiber: PLUGIN_FIBER }],
+          // The real loader settles before a form is addressable; the fake
+          // resolves immediately so the import runs on the same tick.
+          await: () => Promise.resolve(),
     },
     logger: { info: () => {}, warn: () => {}, debug: () => {}, error: () => {} },
     ...(home === undefined ? {} : { profileContext: { home } }),
@@ -930,6 +933,9 @@ describe('agent sidebar-open tool gating', () => {
       fiber: PLUGIN_FIBER,
       loader: {
         entries: () => [{ options: { id: ENTRY_ID, name: 'dsh-better-sidebar' }, fiber: PLUGIN_FIBER }],
+          // The real loader settles before a form is addressable; the fake
+          // resolves immediately so the import runs on the same tick.
+          await: () => Promise.resolve(),
       },
       logger: { info: () => {}, warn: () => {}, debug: () => {}, error: () => {} },
     }

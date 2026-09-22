@@ -623,6 +623,28 @@ async function readLegacyPrefs(home: string): Promise<Record<string, unknown> | 
 }
 
 /**
+ * Why a legacy preference import did or did not happen.
+ *
+ * Every one of these is a normal outcome on some deployment, but a silent
+ * early return is exactly the failure shape this release is full of: an
+ * operator upgrading a host cannot tell "there was nothing to migrate" from
+ * "the import never ran". The caller therefore logs the outcome.
+ */
+type LegacyImportOutcome =
+  /** The retired section was found and written into the row. */
+  | 'imported'
+  /** No `profileContext`, so the home (and the document) cannot be located. */
+  | 'no-profile-home'
+  /** The settings service exposes no form for this row. */
+  | 'no-form'
+  /** The row already carries user values; the import must never overwrite them. */
+  | 'already-configured'
+  /** Neither the live nor the migrated document carries a usable section. */
+  | 'no-legacy-section'
+  /** The write itself failed; the caller's catch reports it. */
+  | 'rejected'
+
+/**
  * One-time import of the Side card preferences a pre-0.1.7 release persisted.
  *
  * The 0.1.6 line stored them through the file-backed settings provider, in
@@ -638,22 +660,23 @@ async function readLegacyPrefs(home: string): Promise<Record<string, unknown> | 
  * @param ctx - host plugin context (profile home, logger).
  * @param settings - the settings forms service.
  * @param ns - this plugin row's entry id.
+ * @returns which outcome the import reached.
  */
 async function importLegacyPrefs(
   ctx: Context,
   settings: SidebarSettingsService,
   ns: string,
-): Promise<void> {
+): Promise<LegacyImportOutcome> {
   const home = ctx.profileContext?.home
-  if (home === undefined) return
+  if (home === undefined) return 'no-profile-home'
   const row = settings.describe().find(candidate => candidate.ns === ns)
-  if (row === undefined) return
+  if (row === undefined) return 'no-form'
   const user = row.user
-  if (user !== null && typeof user === 'object' && Object.keys(user).length > 0) return
+  if (user !== null && typeof user === 'object' && Object.keys(user).length > 0) return 'already-configured'
   const section = await readLegacyPrefs(home)
-  if (section === undefined) return
+  if (section === undefined) return 'no-legacy-section'
   await settings.update(ns, section)
-  ctx.logger.info('dsh-better-sidebar: imported Side card preferences from %s', LEGACY_SETTINGS_FILE)
+  return 'imported'
 }
 
 /**
@@ -764,9 +787,24 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     syncOpenToolsGate()
     // A pre-0.1.7 release persisted these preferences through the file-backed
     // settings provider, which this release deleted. Import that section once.
-    void importLegacyPrefs(ctx, sctx.settings, ns).catch((error: unknown) => {
-      ctx.logger?.warn?.('dsh-better-sidebar: legacy preference import skipped')
-      ctx.logger?.warn?.(error)
+    //
+    // The loader must settle first: `describe()` only lists an entry whose
+    // fiber is ACTIVE, and this callback runs the moment the settings SERVICE
+    // appears — while the loader is still mounting rows, so this plugin's own
+    // row is not in the form list yet and the import would silently find
+    // "no form" and do nothing. Upstream's own settings migration waits the
+    // same way (`ctx.root.loader.await().then(...)`).
+    void Promise.resolve(ctx.loader?.await?.()).then(
+      () => importLegacyPrefs(ctx, sctx.settings, ns),
+    ).then((outcome) => {
+      if (outcome === 'no-profile-home' || outcome === 'no-form') {
+        ctx.logger.warn('dsh-better-sidebar: legacy preference import could not run (%s)', outcome)
+        return
+      }
+      ctx.logger.info('dsh-better-sidebar: legacy preference import: %s', outcome)
+    }).catch((error: unknown) => {
+      ctx.logger.warn('dsh-better-sidebar: legacy preference import was rejected')
+      ctx.logger.warn(error)
     })
   })
 

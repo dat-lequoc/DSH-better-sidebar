@@ -495,6 +495,11 @@ export interface SidebarSettingsService {
  */
 export interface SidebarLoaderService {
   entries(): Iterable<SidebarLoaderEntry>
+  /**
+   * Resolves once every profile entry has been mounted (the Loader settles).
+   * Optional: a composition without the loader imports immediately instead.
+   */
+  await?(): Promise<unknown>
 }
 
 /** One configured plugin row inside the profile's entry tree. */
