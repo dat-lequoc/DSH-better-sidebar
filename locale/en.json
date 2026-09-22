@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Better Sidebar",
+    "description": "A VSCode-like right sidebar: file tree, editor, file changes, subagent tasks and side chat, isolated per conversation."
+  }
+}

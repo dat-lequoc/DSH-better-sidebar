@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Better Sidebar",
+    "description": "VSCode 风格右侧侧边栏：文件树、编辑器、文件变动、子代理任务与侧边对话，按会话隔离。"
+  }
+}
