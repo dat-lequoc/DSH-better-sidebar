@@ -3,7 +3,7 @@
 > [!IMPORTANT]
 > **已适配 DSH 原生侧边栏 API**（v0.19.0 起）：右列就是 DSH 自己的右侧栏——插件的每个 tab 类型与 tab 体通过 `ctx.sidebarRightTabs` / `ctx.sidebarRight` 注册与打开，聊天里的文件打开统一走 `ctx.sidebarRight.openResource('dsh-resource://file/…')`，插件**不再自绘右侧面板**（旧的浮窗能力同步移除）。自绘的底部工作台与开放给其他插件的 `ctx.betterSidebar` 服务保持不变，接入方式见[插件接入指南](docs/external-plugin-guide.md)。
 >
-> **v0.21.0-rc.1 起宿主支持下限是 DSH `0.1.7-rc.1`**（peer 下限 `^0.1.7-rc.1`；npm dist-tag `alpha`，`latest` 仍是 **v0.19.1**）。DSH 0.1.7 自带完整的文档预览（表格 / PDF / 图片 / Office），因此插件**把只读预览整体让给内置**（只保留 Markdown / HTML / 可编辑的代码编辑器）、**把外链接管收敛为「只认领声明了 `urlTarget` 的链接」**（按协议分流的三个外链接管设置项已删除），并**重写了设置接入面**（偏好迁到 profile 里本插件的挂载行，旧的 `settings.yaml` 段在首次启动时自动回迁）；文件树同时获得**实时刷新**。**0.1.6-alpha.2 及更早的用户请停留在 v0.19.1**——注意 **0.20.0 这一版从未发布到 npm**，这些变更全部落在 v0.21.0-rc.1。
+> **v0.21.0-rc.1 起宿主支持下限是 DSH `0.1.7-rc.1`**（peer 下限 `^0.1.7-rc.1`；npm dist-tag `alpha`，`latest` 仍是 **v0.19.1**）。DSH 0.1.7 自带完整的文档预览（表格 / PDF / 图片 / Office），因此插件**把只读预览整体让给内置**（只保留 Markdown / HTML / 可编辑的代码编辑器）、**把外链接管收敛为「只认领声明了 `urlTarget` 的链接」**（按协议分流的三个外链接管设置项已删除），并**重写了设置接入面**（偏好迁到 profile 里本插件的挂载行，旧的 `settings.yaml` 段在首次启动时自动回迁）；文件树同时获得**实时刷新**。**0.1.6-alpha.2 及更早的用户请停留在 v0.19.1**——注意 **0.20.0 这一版从未发布到 npm**，这些变更全部落在 v0.21.0-rc.1。**按 DSH 版本选插件版本的对照表见[安装](#-安装)。**
 
 <!-- Hero -->
 <div align="center">
@@ -68,6 +68,17 @@
 <a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="支持的 DSH 版本（v0.21.0-rc.1）：0.1.7-rc.1+" src="https://img.shields.io/badge/DSH-0.1.7--rc.1%2B-4d6bfe" /></a>
 
 > 📌 **通道与支持线**：`v0.21.0-rc.1` 是 **alpha 通道**（npm dist-tag `alpha`），适配 DSH **0.1.7-rc.1+**（peer 下限 `^0.1.7-rc.1`，CI 钉 `@deepseek-ai/dsh@0.1.7-rc.1`）。**装 DSH 请写精确版本号**：0.1.7-rc.1 在 npm 上走 `next` 通道，`alpha` 此刻指的是 0.1.7-alpha.2——`npm i -g @deepseek-ai/dsh@0.1.7-rc.1`。**npm `latest` 仍是 `v0.19.1`**——注意 `v0.20.0` 这一版**从未发布到 npm**，本仓库从 0.19.1 直接跳到这条 0.21 开发线。**下限必须动**：semver 的预发布规则让 `^0.1.6-alpha.2` 在数学上永远匹配不到任何 `0.1.7` 预发布版。**DSH 0.1.6-alpha.2 及更早（含 npm `latest` 的 0.1.5-rc.3）的用户请固定安装 `dsh-better-sidebar@0.19.1`**——0.1.7 的破坏面足够大（`dsh-settings` 整体重写、`ui-primitives` 图标具名导出整族改名、会话格式 v3→v4），本版不写运行时兼容层；DSH 0.1.5-alpha.2 及更早同样请用旧版（`0.19.0-alpha.1` / `0.18.x` / `0.17.1`）。
+
+> 🧭 **按你的 DSH 版本选插件版本**（**`0.21.0-rc.1` 起的支持线是 DSH `0.1.7-rc.1` 及之后的 0.1.7 线**；0.1.7 的两个 alpha 与 0.1.6 及更早都不在这条线内）：
+>
+> | 你的 DSH 版本 | 该装的 dsh-better-sidebar | peer 声明 |
+> | --- | --- | --- |
+> | **0.1.7-rc.1+**（含之后的 0.1.7 正式版） | **`dsh-better-sidebar@alpha`** → **`0.21.0-rc.1`**（当前版本） | `^0.1.7-rc.1` |
+> | 0.1.7-alpha.1 / 0.1.7-alpha.2 | **没有可装版本**——先把 DSH 升到 rc.1（`npm i -g @deepseek-ai/dsh@0.1.7-rc.1`）再来装本版 | — |
+> | 0.1.6-alpha.2 及更早、`0.1.5-rc.*`（含 npm `latest` 的 0.1.5-rc.3） | `dsh-better-sidebar@latest` → **`0.19.1`** | `^0.1.5-rc.1` |
+> | `0.1.5-alpha.2` 及更早的 `0.1.x` 预发布 | **`0.19.0-alpha.1`** / **`0.18.1`** / **`0.17.1`**——取 peer 元组对得上的那一版 | `^0.1.5-alpha.2` / `^0.1.2-rc.1` / `^0.1.0-rc.8` |
+>
+> peer 写的是**范围**而不是精确钉版：`^0.1.7-rc.1` 天然容纳 0.1.7 的 rc 与正式全线，所以上游继续发 rc.2 或正式版时**不需要换插件版本**。反过来**不要**在 0.1.7 的 alpha 上装 0.19.1——0.1.7 重写了设置服务、改了图标具名导出与会话格式三处硬契约，装上只会坏。
 
 ```sh
 dsh plugin --profile web add dsh-better-sidebar@alpha
