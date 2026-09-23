@@ -91,8 +91,9 @@ describe('DSH plugin presentation metadata', () => {
   it('keeps the icon in the built-in house style', () => {
     const svg = readFileSync(iconPath(), 'utf8')
     // Every icon DSH ships for this feature is a 36x36, fill-only geometric
-    // mark (see packages/experimental/*/icon.svg). Pinning the frame keeps a
-    // later redraw from silently changing how the mark scales in the list.
+    // mark (see packages/experimental/*/icon.svg and the artwork in
+    // ui-primitives/src/plugin-artwork.tsx). Pinning the frame keeps a later
+    // redraw from silently changing how the mark scales in the list.
     expect(svg).toMatch(/viewBox="0 0 36 36"/u)
     expect(svg).toMatch(/width="36"/u)
     expect(svg).toMatch(/height="36"/u)
@@ -101,6 +102,17 @@ describe('DSH plugin presentation metadata', () => {
     // a <text> node would also render in whatever font the browser picks.
     expect(svg, 'no stroked outlines in the built-in style').not.toMatch(/stroke=/u)
     expect(svg, 'no <text> in an icon').not.toMatch(/<text[\s>]/u)
+    // The built-ins "carry their own brand colors and gradients instead of
+    // riding currentColor" (their file header), and each is genuinely
+    // multi-hue — a flat single-colour redraw reads as a plain block beside
+    // them at the 30px row size.
+    expect(svg, 'the mark must be colourised, not flat').toMatch(/<linearGradient/u)
+    expect((svg.match(/<linearGradient/gu) ?? []).length, 'at least two gradients = two hues').toBeGreaterThanOrEqual(2)
+    expect(svg, 'no currentColor: plugin artwork owns its palette').not.toMatch(/currentColor/u)
+    // A CSS-only paint (conic-gradient via foreignObject, as the search
+    // artwork uses) renders inline but stays EMPTY inside the `<img>` this
+    // feature delivers the icon through.
+    expect(svg, 'no foreignObject: the icon ships as an <img>').not.toMatch(/foreignObject/u)
   })
 
   it('actually packs the icon and locales into the tarball', () => {
