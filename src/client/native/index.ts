@@ -49,16 +49,25 @@ import {
  *
  * Refusing here is what hands the address over: `canOpen` returning false
  * leaves the built-in `text` type (the `fallback` band) as the only claimant.
+ *
+ * The list is exactly the set the host renders — nothing more. Nine extensions
+ * that the host has NO renderer for (`xlsb xlt xltx xltm ots dot dotx avif`)
+ * used to be refused here too, and refusing them turned "the plugin shows a
+ * download panel" into "the host shows 'preview is not available for this file
+ * type yet'" — a dead end. They are claimed again, so the `code` catch-all
+ * takes them to the binary download pane. `fods` stays refused on purpose: the
+ * host's plain-text fallback renders flat ODS XML, which beats a download.
+ * `tests/native-surface.spec.ts` pins both directions of this boundary.
  */
 const HOST_OWNED_EXTS: ReadonlySet<string> = new Set([
   // Spreadsheets: the built-in renders a table in a worker.
-  'xlsx', 'xls', 'xlsb', 'xlt', 'xltx', 'xltm', 'ods', 'ots', 'fods', 'csv', 'tsv',
+  'xlsx', 'xls', 'csv', 'tsv', 'fods',
   // PDF: the built-in viewer pages and zooms.
   'pdf',
   // Images: the built-in viewer adds a zoom viewport.
-  'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif',
+  'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico',
   // Office documents: the built-in converts them to PDF host-side.
-  'doc', 'docx', 'dot', 'dotx', 'ppt', 'pptx',
+  'doc', 'docx', 'ppt', 'pptx',
 ])
 
 /**

@@ -326,6 +326,70 @@ describe('registerNativeSurface lifecycle (service-driven registration)', () => 
 
     dispose()
   })
+
+  it('claims exactly the extensions DSH has no preview for (the nine restored formats included)', () => {
+    // DSH 0.1.7 handed every read-only preview to `ui-sidebar-documentpreview`,
+    // and `canOpen` returning false is what gives the address away. The host's
+    // renderer tables cover xlsx/xls/csv/tsv, pdf, the eight common image
+    // formats, doc/docx/ppt/pptx and the flat-ODS text fallback — nine
+    // extensions that were refused here as well have NO host renderer at all,
+    // and refusing them swapped the plugin's binary-download pane for the
+    // host's "Preview is not available for this file type yet" dead end. This
+    // pins both directions so the refusal list can never drift wider than the
+    // host again; the host files behind the boundary are named in
+    // src/client/native/index.ts.
+    const store = createSidebarStore()
+    store.setSession('s1')
+    const service = createBetterSidebarService(store)
+    service.registerTab({ id: 'editor', title: 'Files', component: () => null })
+    const records = createNativeTabRecords()
+    let canOpen: ((address: string) => boolean) | undefined
+    const ctx = {
+      inject: (_deps: readonly string[], callback: (injected: { get: () => unknown }) => void) => {
+        callback({
+          get: () => ({
+            register: (definition: { kind: string; canOpen?: (address: string) => boolean }) => {
+              if (definition.kind === 'editor') canOpen = definition.canOpen
+              return () => {}
+            },
+          }),
+        })
+        return { dispose: () => {} }
+      },
+      get: () => undefined,
+      slots: { inject: (_key: string, callback: () => () => void) => callback(), register: () => () => {} },
+    }
+    registerNativeSurface({ ctx: ctx as never, store, service, records })
+    expect(canOpen, 'the editor type registered no canOpen').toBeTypeOf('function')
+    const open = canOpen as (address: string) => boolean
+
+    /** One session-scoped file address, the shape the chat hands the sidebar. */
+    const file = (name: string) => `dsh-resource://file/session/s1/${name}`
+
+    // Formats the host renders: DSH's own preview must own them.
+    for (const name of [
+      'book.xlsx', 'legacy.xls', 'data.csv', 'data.tsv', 'flat.fods',
+      'paper.pdf', 'photo.png', 'photo.jpg', 'anim.gif', 'photo.webp', 'art.svg',
+      'tile.bmp', 'favicon.ico', 'report.docx', 'report.doc', 'deck.pptx', 'deck.ppt',
+    ]) {
+      expect(open(file(name)), name).toBe(false)
+    }
+
+    // Formats the host has NO renderer for: the plugin claims them, so the
+    // `code` catch-all reaches the binary-download pane instead of a dead end.
+    for (const name of [
+      'macro.xlsb', 'sheet.xlt', 'template.xltx', 'macro.xltm',
+      'flat.ods', 'flat.ots', 'notes.dot', 'notes.dotx', 'next.avif',
+    ]) {
+      expect(open(file(name)), name).toBe(true)
+    }
+
+    // The three viewers the plugin keeps on purpose, and a non-file address.
+    for (const name of ['README.md', 'page.html', 'main.ts']) {
+      expect(open(file(name)), name).toBe(true)
+    }
+    expect(open('sidebar://editor')).toBe(false)
+  })
 })
 
 describe('NativeTabBody full-height host wrapper', () => {
