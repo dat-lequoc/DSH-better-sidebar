@@ -3,7 +3,7 @@
 > [!IMPORTANT]
 > **Built on DSH's native sidebar API** (since v0.19.0): the right column *is* DSH's own sidebar — every plugin tab type and tab body registers and opens through `ctx.sidebarRightTabs` / `ctx.sidebarRight`, every file open from the chat goes through `ctx.sidebarRight.openResource('dsh-resource://file/…')`, and the plugin **no longer draws a right panel of its own** (the old free-window capability is gone with it). The self-drawn bottom workbench and the `ctx.betterSidebar` service other plugins register against are unchanged — see the [plugin integration guide](docs/external-plugin-guide.md).
 >
-> **Since v0.21.0-rc.1 the host support floor is DSH `0.1.7-rc.1`** (peer floor `^0.1.7-rc.1`; npm dist-tag `alpha`, while `latest` is still **v0.19.1**). DSH 0.1.7 ships a complete document preview of its own (spreadsheets / PDF / images / Office), so the plugin **hands every read-only preview back to the built-in** (keeping only Markdown / HTML / the editable code editor), **narrows the external-link takeover to links a tab type explicitly claims through `urlTarget`** (the three protocol-routing settings are gone), and **rewrites how it reaches settings** (preferences now live on this plugin's mount row in the profile, with the old `settings.yaml` section imported once on first boot); the file tree also gains **live refresh**. **Hosts on 0.1.6-alpha.2 or earlier should stay on v0.19.1** — note that **v0.20.0 was never published to npm**; every one of these changes shipped in v0.21.0-rc.1. **The DSH-to-plugin version table is in [Installation](#-installation).**
+> **Since v0.21.1 the host support floor is DSH `0.1.7-rc.1`** (peer floor `^0.1.7-rc.1`; npm dist-tag `alpha`, while `latest` is still **v0.19.1**). DSH 0.1.7 ships a complete document preview of its own (spreadsheets / PDF / images / Office), so the plugin **hands every read-only preview back to the built-in** (keeping only Markdown / HTML / the editable code editor), **narrows the external-link takeover to links a tab type explicitly claims through `urlTarget`** (the three protocol-routing settings are gone), and **rewrites how it reaches settings** (preferences now live on this plugin's mount row in the profile, with the old `settings.yaml` section imported once on first boot); the file tree also gains **live refresh**. **Hosts on 0.1.6-alpha.2 or earlier should stay on v0.19.1** — note that **v0.20.0 was never published to npm**; every one of these changes shipped in v0.21.1. **The DSH-to-plugin version table is in [Installation](#-installation).**
 
 <!-- Hero -->
 <div align="center">
@@ -14,7 +14,7 @@
   <a href="https://github.com/omdsh-dev/DSH-better-sidebar/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/omdsh-dev/DSH-better-sidebar" /></a>
   <a href="https://opensource.org/licenses/MIT"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg" /></a>
   <a href="https://dshfind.com/en/plugins/omdsh-dev/DSH-better-sidebar?ref=badge"><img alt="dshfind" src="https://dshfind.com/api/badge/omdsh-dev/DSH-better-sidebar?lang=en" /></a><br /><br />
-  <a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="Supported DSH versions (v0.21.0-rc.1): 0.1.7-rc.1+" src="https://img.shields.io/badge/DSH-0.1.7--rc.1%2B-4d6bfe" /></a>
+  <a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="Supported DSH versions (v0.21.1): 0.1.7-rc.1+" src="https://img.shields.io/badge/DSH-0.1.7--rc.1%2B-4d6bfe" /></a>
   <a href="https://github.com/topics/dsh-better-sidebar"><img alt="Plugin ecosystem: GitHub topic dsh-better-sidebar" src="https://img.shields.io/badge/plugin%20ecosystem-topic%20dsh--better--sidebar-4d6bfe" /></a><br /><br />
   <img alt="File management" src="https://img.shields.io/badge/-File%20management-4d6bfe" /> <img alt="Edit &amp; preview" src="https://img.shields.io/badge/-Edit%20%26%20preview-4d6bfe" /> <img alt="Built-in browser" src="https://img.shields.io/badge/-Built-in%20browser-4d6bfe" /> <img alt="Changes" src="https://img.shields.io/badge/-Changes-4d6bfe" /> <img alt="Background tasks" src="https://img.shields.io/badge/-Background%20tasks-4d6bfe" /> <img alt="Side Chat" src="https://img.shields.io/badge/-Side%20Chat-4d6bfe" /> <img alt="Plugin integration" src="https://img.shields.io/badge/-Plugin%20integration-4d6bfe" /><br /><br />
   <b>A dual workbench (right sidebar + bottom panel)</b> that opens its <code>ctx.betterSidebar</code> service to every plugin —<br />
@@ -65,15 +65,15 @@
 **Prerequisites**: DSH installed (`dsh web` boots), Node.js ≥ 20, pnpm ≥ 10.
 
 **Supported DSH versions**:
-<a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="Supported DSH versions (v0.21.0-rc.1): 0.1.7-rc.1+" src="https://img.shields.io/badge/DSH-0.1.7--rc.1%2B-4d6bfe" /></a>
+<a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="Supported DSH versions (v0.21.1): 0.1.7-rc.1+" src="https://img.shields.io/badge/DSH-0.1.7--rc.1%2B-4d6bfe" /></a>
 
-> 📌 **Channel and support line**: `v0.21.0-rc.1` ships on the **alpha channel** (npm dist-tag `alpha`) and targets DSH **0.1.7-rc.1+** (peer floor `^0.1.7-rc.1`, CI pins `@deepseek-ai/dsh@0.1.7-rc.1`). **Pin the DSH version exactly**: 0.1.7-rc.1 rides npm's `next` dist-tag while `alpha` currently points at 0.1.7-alpha.2 — `npm i -g @deepseek-ai/dsh@0.1.7-rc.1`. **npm `latest` is still `v0.19.1`** — note that `v0.20.0` was **never published to npm**; this repository jumped straight from 0.19.1 to this 0.21 line. **The floor had to move**: semver's prerelease rule means `^0.1.6-alpha.2` can never match any `0.1.7` prerelease. **Hosts on DSH 0.1.6-alpha.2 or earlier (including the 0.1.5-rc.3 that is npm's `latest`) should pin `dsh-better-sidebar@0.19.1`** — 0.1.7's breakage is large enough (the `dsh-settings` rewrite, the wholesale rename of `ui-primitives` icon exports, session format v3→v4) that this version writes no runtime compatibility layer; DSH 0.1.5-alpha.2 and earlier should likewise stay on their old versions (`0.19.0-alpha.1` / `0.18.x` / `0.17.1`).
+> 📌 **Channel and support line**: `v0.21.1` is the **stable release** (npm dist-tag `latest`) and targets DSH **0.1.7-rc.1+** (peer floor `^0.1.7-rc.1`, CI pins `@deepseek-ai/dsh@0.1.7-rc.1`). **Pin the DSH version exactly**: 0.1.7-rc.1 rides npm's `next` dist-tag while `alpha` currently points at 0.1.7-alpha.2 — `npm i -g @deepseek-ai/dsh@0.1.7-rc.1`. **npm `latest` now moves from `v0.19.1` to this version** — note that `v0.20.0` and `v0.21.0-alpha.1` were **never published to npm** (the interim `0.21.0-rc.1` existed only on the `alpha` dist-tag); this repository jumped straight from 0.19.1 to this 0.21 line. **The floor had to move**: semver's prerelease rule means `^0.1.6-alpha.2` can never match any `0.1.7` prerelease. **Hosts on DSH 0.1.6-alpha.2 or earlier (including the 0.1.5-rc.3 that is npm's `latest`) should pin `dsh-better-sidebar@0.19.1`** — 0.1.7's breakage is large enough (the `dsh-settings` rewrite, the wholesale rename of `ui-primitives` icon exports, session format v3→v4) that this version writes no runtime compatibility layer; DSH 0.1.5-alpha.2 and earlier should likewise stay on their old versions (`0.19.0-alpha.1` / `0.18.x` / `0.17.1`).
 
-> 🧭 **Pick the plugin version that matches your DSH** (**from `0.21.0-rc.1` the support line is DSH `0.1.7-rc.1` and any later 0.1.7 release**; the two 0.1.7 alphas and 0.1.6-and-earlier are outside it):
+> 🧭 **Pick the plugin version that matches your DSH** (**from `0.21.1` the support line is DSH `0.1.7-rc.1` and any later 0.1.7 release**; the two 0.1.7 alphas and 0.1.6-and-earlier are outside it):
 >
 > | Your DSH | Install command | Version / peer declared |
 > | --- | --- | --- |
-> | **0.1.7-rc.1+** (including a later 0.1.7 stable) | `dsh plugin --profile web add dsh-better-sidebar@alpha` | **0.21.0-rc.1**, `^0.1.7-rc.1` |
+> | **0.1.7-rc.1+** (including a later 0.1.7 stable) | `dsh plugin --profile web add dsh-better-sidebar@latest` | **0.21.1**, `^0.1.7-rc.1` |
 > | 0.1.7-alpha.1 / 0.1.7-alpha.2 | **nothing to install** — move DSH to rc.1 first, then run the row above:<br>`npm i -g @deepseek-ai/dsh@0.1.7-rc.1` | — |
 > | 0.1.6-alpha.2 and earlier, `0.1.5-rc.*` (including the 0.1.5-rc.3 that is npm's `latest`) | `dsh plugin --profile web add dsh-better-sidebar@0.19.1` | **0.19.1** (= npm `latest`), `^0.1.5-rc.1` |
 > | `0.1.5-alpha.2` | `dsh plugin --profile web add dsh-better-sidebar@0.19.0-alpha.1` | `^0.1.5-alpha.2` |
@@ -84,10 +84,10 @@
 > Swap `web` for your own profile name. **Older versions are pinned exactly** (`@0.19.1`, not `@latest`), because `latest` moves forward with each new stable cut. The peer is a **range**, not an exact pin: `^0.1.7-rc.1` already admits every 0.1.7 rc and the stable release, so a later rc.2 or a stable 0.1.7 does **not** require a new plugin version. Conversely, do **not** install 0.19.1 on a 0.1.7 alpha — 0.1.7 rewrote the settings service and moved the icon exports and the session format, so it would simply break.
 
 ```sh
-dsh plugin --profile web add dsh-better-sidebar@alpha
+dsh plugin --profile web add dsh-better-sidebar@latest
 ```
 
-> **Install `@alpha`, not `@latest`**: `latest` still points at `v0.19.1` (which supports only the DSH 0.1.5/0.1.6 line), while this version lives on the `alpha` channel. The plugin depends on no package that needs a build script (the terminal and `node-pty` went back to DSH wholesale), so installing is **one step** — no `pnpm approve-builds` re-run. DSH also ships a Web **Plugins page** (`ui-plugin-manager`) plus the `plugin_manager` tool, so you can enable / disable it right there once installed.
+> **`@latest` is this version**: `v0.21.1` is the **stable release**, and npm's `latest` has moved from `v0.19.1` to it. **It supports DSH 0.1.7-rc.1+ only** — on DSH 0.1.6-alpha.2 or earlier (including the 0.1.5-rc.3 that is DSH's npm `latest`) pin `dsh-better-sidebar@0.19.1` with the command in the table above instead of installing `@latest`. The plugin depends on no package that needs a build script (the terminal and `node-pty` went back to DSH wholesale), so installing is **one step** — no `pnpm approve-builds` re-run. DSH also ships a Web **Plugins page** (`ui-plugin-manager`) plus the `plugin_manager` tool, so you can enable / disable it right there once installed.
 
 Then **hard-refresh the browser** (Cmd/Ctrl+Shift+R) to see the sidebar (DSH hot-reloads client changes; only host-half updates need a restart).
 
@@ -95,7 +95,7 @@ Then **hard-refresh the browser** (Cmd/Ctrl+Shift+R) to see the sidebar (DSH hot
 
 ```text
 Install the dsh-better-sidebar plugin (a sidebar workbench for DSH):
-1. Run: dsh plugin --profile web add dsh-better-sidebar@alpha (the alpha channel — `latest` is 0.19.1 and supports only DSH 0.1.5/0.1.6, so it is useless here)
+1. Run: dsh plugin --profile web add dsh-better-sidebar@latest (the alpha channel — `latest` is 0.19.1 and supports only DSH 0.1.5/0.1.6, so it is useless here)
 2. When done, remind me to hard-refresh the browser (Cmd/Ctrl+Shift+R)
 If anything fails, check the troubleshooting table in the README at https://github.com/omdsh-dev/DSH-better-sidebar
 ```
@@ -106,10 +106,10 @@ If anything fails, check the troubleshooting table in the README at https://gith
 <summary><b>Updating</b></summary>
 
 ```sh
-dsh plugin --profile web add dsh-better-sidebar@alpha
+dsh plugin --profile web add dsh-better-sidebar@latest
 ```
 
-or bump the version in `~/.dsh/profiles/web/package.json` to the matching npm version (stable line `"^0.19.1"`; this alpha line `"^0.21.0-rc.1"`) and run `pnpm install`. Then hard-refresh the browser (Cmd/Ctrl+Shift+R) — client changes do not need a DSH restart.
+or bump the version in `~/.dsh/profiles/web/package.json` to the matching npm version (stable line `"^0.19.1"`; this line `"^0.21.1"`) and run `pnpm install`. Then hard-refresh the browser (Cmd/Ctrl+Shift+R) — client changes do not need a DSH restart.
 
 </details>
 
@@ -124,7 +124,7 @@ or bump the version in `~/.dsh/profiles/web/package.json` to the matching npm ve
 | Two sidebars on the page | Double-mount. Old hand-written line: `~/.dsh/profiles/web/cordis.patch.yml` still has `- insert: ... better-sidebar ...` — delete it (a same-id duplicate mount makes the loader fail loudly with `duplicate loader entry id`). When an aggregate bundle (e.g. `@linxin666/dsh-web-ui-all`) mounts this package under a **different** id, the plugin's own bundle patch backs off automatically since 0.13.x (it detects an already-enabled mount of the same package name and does not mount itself) — no manual fix needed; if it still double-mounts, make sure the aggregate bundle precedes `dsh-better-sidebar` in `dsh.profile.bundles`. |
 | Where did my settings go after upgrading? | DSH 0.1.7 removed the registrable settings namespace: preferences now live on this plugin's **mount row** in the profile (entry id `better-sidebar` by default), not in `~/.dsh/settings.yaml`. On first boot the plugin imports the `dsh-better-sidebar` section of the old `settings.yaml` (renamed `settings.yaml.imported` by the host) exactly once — only fields the current schema still declares, and only while that row has no user values yet, so it never overwrites values set after the upgrade. |
 | Terminal unusable / shell fails to start | The terminal comes from **DSH's own `ui-sidebar-terminal`** (this plugin no longer ships a terminal or `node-pty`, and has no terminal settings). Consult DSH's own docs for problems; if the error mentions build scripts, see the row above. |
-| `dsh: command not found` | Install DSH first, or run `npx -y --package @deepseek-ai/dsh dsh plugin --profile web add dsh-better-sidebar@alpha`. |
+| `dsh: command not found` | Install DSH first, or run `npx -y --package @deepseek-ai/dsh dsh plugin --profile web add dsh-better-sidebar@latest`. |
 
 </details>
 
@@ -147,7 +147,7 @@ To debug local changes or track the dev branch, point the dependency at a local 
 5. Restart DSH and hard-refresh
 ```
 
-Update: `git pull && pnpm install && pnpm build` → just hard-refresh the browser (client changes hot-reload; only host-half changes need a DSH restart). To switch back to the npm channel, restore the matching npm version (stable line `"^0.19.1"`; this alpha line `"^0.21.0-rc.1"`) and re-run `pnpm install`.
+Update: `git pull && pnpm install && pnpm build` → just hard-refresh the browser (client changes hot-reload; only host-half changes need a DSH restart). To switch back to the npm channel, restore the matching npm version (stable line `"^0.19.1"`; this line `"^0.21.1"`) and re-run `pnpm install`.
 
 </details>
 
@@ -277,11 +277,11 @@ The GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sid
   <a href="https://github.com/user-attachments/assets/946f7028-4967-461e-a750-d1b5056b62d0"><img width="33%" alt="Service API base screenshot" src="https://github.com/user-attachments/assets/946f7028-4967-461e-a750-d1b5056b62d0" /></a>
 </div>
 
-**Supported DSH versions**: <a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="Supported DSH versions (v0.21.0-rc.1): 0.1.7-rc.1+" src="https://img.shields.io/badge/DSH-0.1.7--rc.1%2B-4d6bfe" /></a> · full release history on the [Releases](https://github.com/omdsh-dev/DSH-better-sidebar/releases) page
+**Supported DSH versions**: <a href="https://www.npmjs.com/package/@deepseek-ai/dsh?activeTab=versions"><img alt="Supported DSH versions (v0.21.1): 0.1.7-rc.1+" src="https://img.shields.io/badge/DSH-0.1.7--rc.1%2B-4d6bfe" /></a> · full release history on the [Releases](https://github.com/omdsh-dev/DSH-better-sidebar/releases) page
 
-### v0.21.0-rc.1
+### v0.21.1
 
-> 🧪 **alpha channel** (npm dist-tag `alpha`, install `dsh-better-sidebar@alpha`; npm `latest` is still **v0.19.1**): supports **DSH 0.1.7-rc.1+** only (peer floor `^0.1.7-rc.1`, CI pins `@deepseek-ai/dsh@0.1.7-rc.1`). **Hosts on DSH 0.1.6-alpha.2 or earlier should stay on v0.19.1** — 0.1.7 moves three hard contracts (the settings service, the icon named exports and the session format) and this version writes no runtime compatibility layer. ⚠️ **The previous v0.20.0 was never published to npm**: its terminal / browser handover ships here too, so npm goes straight from 0.19.1 to this version.
+> 🧪 **alpha channel** (npm dist-tag `alpha`, install `dsh-better-sidebar@latest`; npm `latest` is still **v0.19.1**): supports **DSH 0.1.7-rc.1+** only (peer floor `^0.1.7-rc.1`, CI pins `@deepseek-ai/dsh@0.1.7-rc.1`). **Hosts on DSH 0.1.6-alpha.2 or earlier should stay on v0.19.1** — 0.1.7 moves three hard contracts (the settings service, the icon named exports and the session format) and this version writes no runtime compatibility layer. ⚠️ **The previous v0.20.0 was never published to npm**: its terminal / browser handover ships here too, so npm goes straight from 0.19.1 to this version.
 
 - 🗂️ **Read-only file previews handed to DSH's document preview**: DSH 0.1.7's `ui-sidebar-documentpreview` ships its own spreadsheet / PDF / image / Office rendering (host-side Office→PDF conversion, worker-backed spreadsheet tables, image / PDF zoom, per-directory auto-refresh), so the plugin deleted its `image` / `pdf` / `binary-download` viewers and **refuses** those extensions in `editor.canOpen` — `xlsx xls csv tsv fods pdf png jpg jpeg gif webp svg bmp ico doc docx ppt pptx` — handing the address back to the host. **rc.1 takes nine of them back**: `xlsb` / `xlt` / `xltx` / `xltm` / `ots` / `dot` / `dotx` / `avif` / `ods` have **no host renderer at all** (opening one only said "preview is not available"), yet before the handover they reached the plugin's download pane — a regression we introduced ourselves in the previous version. The plugin's `code` catch-all claims them again. `fods` stays handed over (the host shows that flat XML as plain text, which beats a download pane). — handing the file address back to the host. **Three things the host does not have stay in the plugin**: Markdown (its own renderer), HTML (its own sandboxed preview plus the `htmlViewerNoSandbox` / `htmlViewerDefaultUnsafe` safety switches), and the **editable** text / code editor (the built-in ones are read-only previews); unknown binaries (`.zip` / `.wasm`) still land on the code editor's download pane after the binary check, so nothing regresses.
 - 🔗 **External-link takeover narrowed**: the three protocol-routing external-link settings are gone (with their keys in all 20 locale dictionaries). The plugin now takes over **only links a tab type explicitly claims through `urlTarget`** and lets everything else through for the host to route (DSH 0.1.7 adds the user setting `linkOpening`, deciding whether prose links open in the sidebar or a new tab); **when nothing claims a link it does not preventDefault**; a successful claim whose target type is unavailable at open time falls back to `window.open(url, '_blank', 'noopener,noreferrer')` — which also fixes a real regression from the previous version: http links inside plugin-drawn markdown (Side Chat transcripts / editor previews / diff panes) did nothing when clicked. Separately, the host's `browser` kind is **no longer mounted in the Web profile** (0.1.7 mounts it in the desktop profile only).
@@ -293,7 +293,7 @@ The GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sid
 
 ### v0.20.0 (dev line, **never published**)
 
-> 🚫 **This version never reached npm** (npm `latest` is still v0.19.1): it was meant to be the stable release on the 0.1.6-alpha.2 line, but the 0.21 line replaced it before release, so everything below actually shipped in **v0.21.0-rc.1**. Its original positioning: supports **DSH 0.1.6-alpha.2+** only (peer floor `^0.1.6-alpha.2`, CI pins `@deepseek-ai/dsh@0.1.6-alpha.2`). **This is a breaking-change release**: hosts on 0.1.5-rc.* should pin `dsh-better-sidebar@0.19.1`. See [docs/plans/2026-09-21-dsh-0.1.6-alpha.2-adaptation.md](docs/plans/2026-09-21-dsh-0.1.6-alpha.2-adaptation.md) for the adaptation record.
+> 🚫 **This version never reached npm** (npm `latest` is still v0.19.1): it was meant to be the stable release on the 0.1.6-alpha.2 line, but the 0.21 line replaced it before release, so everything below actually shipped in **v0.21.1**. Its original positioning: supports **DSH 0.1.6-alpha.2+** only (peer floor `^0.1.6-alpha.2`, CI pins `@deepseek-ai/dsh@0.1.6-alpha.2`). **This is a breaking-change release**: hosts on 0.1.5-rc.* should pin `dsh-better-sidebar@0.19.1`. See [docs/plans/2026-09-21-dsh-0.1.6-alpha.2-adaptation.md](docs/plans/2026-09-21-dsh-0.1.6-alpha.2-adaptation.md) for the adaptation record.
 
 - 🖥️ **Terminal handed to DSH's built-in**: DSH 0.1.6 ships its own right-column terminal (`ui-sidebar-terminal`), so the plugin deleted its whole terminal stack — `pty-manager` / `agent-pty` / `pty-deps` / the 8 `terminal_*` tools / the xterm view and font-linking / cross-session terminal pinning — along with the `node-pty` dependency, its `allowBuilds` grant and the installer's `-Repair` mode. **Note**: the model therefore loses a cross-call persistent terminal (only one-shot `bash` / `pwsh` remain); the upstream `@deepseek-ai/dsh-tool-terminal` is not mounted by any shipped bundle, so enable it yourself in the profile when you need it.
 - 🌐 **Browser view handed to the built-in**: the plugin deleted `BrowserView` / the sandbox status bar / the embeddability probe (including the host's `browser.probe` route) and the two settings that only configured its own iframe; it **keeps** the external-link takeover in the chat and UI (protocol-based routing is the capability the host does not have), now targeting DSH's built-in `browser` tab type.
@@ -336,7 +336,7 @@ The GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sid
 
 ### v0.19.0-alpha.1
 
-> 🧪 **alpha channel** (npm dist-tag `alpha`, install `dsh-better-sidebar@alpha`): supports **DSH 0.1.5-alpha.2+** only (peer floor `^0.1.5-alpha.2`, CI pins `@deepseek-ai/dsh@0.1.5-alpha.2`). Stay on **v0.19.0-alpha.0** for 0.1.5-alpha.1; the 0.1.2-rc.1 stable line keeps using **v0.18.1** (npm `latest`).
+> 🧪 **alpha channel** (npm dist-tag `alpha`, install `dsh-better-sidebar@latest`): supports **DSH 0.1.5-alpha.2+** only (peer floor `^0.1.5-alpha.2`, CI pins `@deepseek-ai/dsh@0.1.5-alpha.2`). Stay on **v0.19.0-alpha.0** for 0.1.5-alpha.1; the 0.1.2-rc.1 stable line keeps using **v0.18.1** (npm `latest`).
 
 **✨ New**
 
@@ -354,7 +354,7 @@ The GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sid
 
 ### v0.19.0-alpha.0
 
-> 🧪 **alpha channel** (npm dist-tag `alpha`, install `dsh-better-sidebar@alpha`): supports **DSH 0.1.5-alpha.1+** only (peer floor `^0.1.5-alpha.1`, CI pins `@deepseek-ai/dsh@0.1.5-alpha.1`). The 0.1.2-rc.1 stable line keeps using **v0.18.1** (npm `latest`).
+> 🧪 **alpha channel** (npm dist-tag `alpha`, install `dsh-better-sidebar@latest`): supports **DSH 0.1.5-alpha.1+** only (peer floor `^0.1.5-alpha.1`, CI pins `@deepseek-ai/dsh@0.1.5-alpha.1`). The 0.1.2-rc.1 stable line keeps using **v0.18.1** (npm `latest`).
 
 **✨ New**
 
@@ -393,7 +393,7 @@ The GitHub topic [`dsh-better-sidebar`](https://github.com/topics/dsh-better-sid
 
 ### v0.18.0
 
-> 📌 **Stable release** (npm `latest`): this release targets **DSH 0.1.2-rc.1+ only** (peer floor `^0.1.2-rc.1`); 0.1.0-rc.8 ~ 0.1.1-rc.2 are not supported — stable-DSH users should stay pinned to `dsh-better-sidebar@0.17.1`, hosts on 0.1.2-alpha.x keep `dsh-better-sidebar@alpha` (v0.18.0-alpha.0).
+> 📌 **Stable release** (npm `latest`): this release targets **DSH 0.1.2-rc.1+ only** (peer floor `^0.1.2-rc.1`); 0.1.0-rc.8 ~ 0.1.1-rc.2 are not supported — stable-DSH users should stay pinned to `dsh-better-sidebar@0.17.1`, hosts on 0.1.2-alpha.x keep `dsh-better-sidebar@latest` (v0.18.0-alpha.0).
 
 All changes since v0.17.1 (the two intermediate version numbers v0.18.1-alpha.0 / v0.19.0-alpha.0 were never published; their content is folded into this release):
 
@@ -434,13 +434,13 @@ All changes since v0.17.1 (the two intermediate version numbers v0.18.1-alpha.0 
 
 ### v0.18.1-alpha.0
 
-> 🧪 **Alpha track**: this release targets **DSH 0.1.2-alpha.x only** (peer floor `^0.1.2-alpha.3`, npm dist-tag `alpha`, install `dsh-better-sidebar@alpha`). This version number was never published separately; its content is folded into the **v0.18.0** stable release.
+> 🧪 **Alpha track**: this release targets **DSH 0.1.2-alpha.x only** (peer floor `^0.1.2-alpha.3`, npm dist-tag `alpha`, install `dsh-better-sidebar@latest`). This version number was never published separately; its content is folded into the **v0.18.0** stable release.
 
 - 🔗 **Adapted to DSH 0.1.2-alpha.3 (published to npm, `alpha` dist-tag)**: the CI mount gate's pin, the `dsh.plugin.json` engines floor, and the `@deepseek-ai/*` peer / devDependencies baseline moved up to 0.1.2-alpha.3 (verified by a real-host mount smoke 14/14). All 117 commits between alpha.2 and alpha.3 were audited point by point: every host contract this plugin relies on (token auth, slash RPC, `MarkdownText` labels, the event-stream and persistence APIs behind `sidechat.events`, `SettingsNamespaceInput`, `SUBAGENT_DESCRIPTOR_VERSION` (still 3), `dsh-client-store`, the profile loader, the node-pty pin) is unchanged, so no code adaptation was needed; alpha.3's breaking changes (the required `BeginSubmissionInput.mode`, the renamed `attachment-invalid` subagent error, the removed SQLite persistence backend, the identity-gated projection change feed) were all verified not to touch this plugin.
 
 ### v0.18.0-alpha.0
 
-> 🧪 **Alpha track**: this release targets **DSH 0.1.2-alpha.x only** (peer floor `^0.1.2-alpha.2`, npm dist-tag `alpha`, install `dsh-better-sidebar@alpha`); 0.1.0-rc.8 ~ 0.1.1-rc.2 are no longer supported — stable-DSH users should stay on v0.17.1 (npm `latest`).
+> 🧪 **Alpha track**: this release targets **DSH 0.1.2-alpha.x only** (peer floor `^0.1.2-alpha.2`, npm dist-tag `alpha`, install `dsh-better-sidebar@latest`); 0.1.0-rc.8 ~ 0.1.1-rc.2 are no longer supported — stable-DSH users should stay on v0.17.1 (npm `latest`).
 
 - 🔗 **Adapted to DSH 0.1.2-alpha.2 (published to npm, `alpha` dist-tag)**: the CI mount gate's pin and the `@deepseek-ai/*` devDependencies baseline moved up to it (verified by a real-host mount smoke 14/14). Adaptation points: `dsh-settings` dropped the runtime `settingsNamespace` export (namespaces are now validated at compile time — the host passes the constant directly); the `dsh-subagent` descriptor version went 2→3 (stamped by the host package; the test assertion follows the `SUBAGENT_DESCRIPTOR_VERSION` constant); the restored `SessionEvent.ignorable` and the Remote gateway's unified `RemoteError` wrapping were verified to not affect this plugin.
 - 🐛 **Fixed blank Side Chat transcripts on DSH 0.1.2-alpha.1+**: transcript polling still called the `ctx.connection.api` face removed in alpha.1 (the error was silently swallowed, so the tab rendered an empty transcript forever). Transcripts now come from the plugin's own `sidechat.events` route (live threads read the in-memory event log, cold threads read session persistence, with `afterSeq` delta pulls, [sidechat-routes.ts](./src/sidechat-routes.ts)).
