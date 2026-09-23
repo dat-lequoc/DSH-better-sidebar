@@ -363,7 +363,13 @@ export function TextEditor(props: FileViewerProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [scope.sessionId, scope.cwd, path],
   )
-  const codeLabels = { copyLabel: t('copy'), copiedLabel: t('copied') }
+  const codeLabels = {
+    copyLabel: t('copy'),
+    copiedLabel: t('copied'),
+    codeLabel: t('codeBlockTitle'),
+    wrapLabel: t('codeBlockWrap'),
+    unwrapLabel: t('codeBlockUnwrap'),
+  }
 
   /**
    * Selection popup for the markdown preview: a mouse-up inside the preview

@@ -108,7 +108,13 @@ function PaneToggle(props: { on: boolean; label: string; title?: string; onClick
  *  lifted out); the plain path stays byte-for-byte for documents without
  *  any. */
 function MdReadingView(props: { text: string }) {
-  const codeLabels = { copyLabel: t('copy'), copiedLabel: t('copied') }
+  const codeLabels = {
+    copyLabel: t('copy'),
+    copiedLabel: t('copied'),
+    codeLabel: t('codeBlockTitle'),
+    wrapLabel: t('codeBlockWrap'),
+    unwrapLabel: t('codeBlockUnwrap'),
+  }
   const hasMermaid = splitMermaidBlocks(props.text).some((block) => block.kind === 'mermaid')
   return (
     <div className={css.paneBody}>

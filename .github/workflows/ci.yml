@@ -175,7 +175,7 @@ jobs:
       - name: Install dsh CLI (pinned)
         env:
           NODE_OPTIONS: --max-old-space-size=4096
-        run: npm install -g @deepseek-ai/dsh@0.1.7-alpha.1
+        run: npm install -g @deepseek-ai/dsh@0.1.7-rc.1
 
       # lib/ is gitignored; the tarball is produced from this build.
       - name: Build and pack the npm tarball

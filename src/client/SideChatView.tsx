@@ -121,6 +121,11 @@ interface ThreadCache {
 interface RowLabels {
   copyLabel: string
   copiedLabel: string
+  /** Code-card chrome (DSH 0.1.7-rc.1's fence toolbar): the markdown rows read
+   *  these three straight off this object, the diff / read cards mix them in. */
+  codeLabel: string
+  wrapLabel: string
+  unwrapLabel: string
   thinkLabel: string
   injectionLabel: string
   terminal: TerminalBlockLabels
@@ -345,9 +350,18 @@ export function SideChatView(props: {
       expand: (hidden: number) => t('sideChatBlockExpand', { hidden }),
       expandAria: (hidden: number) => t('sideChatBlockExpandAria', { hidden }),
     }
+    // DSH 0.1.7-rc.1 widened the diff / read cards into code cards and DELETED
+    // `DiffBlockLabels.files`, so the old "N files" footer is gone and these
+    // three strings are required by both cards.
+    const codeCard = {
+      codeLabel: t('codeBlockTitle'),
+      wrapLabel: t('codeBlockWrap'),
+      unwrapLabel: t('codeBlockUnwrap'),
+    }
     return {
       copyLabel: t('copy'),
       copiedLabel: t('copied'),
+      ...codeCard,
       thinkLabel: t('sideChatThink'),
       injectionLabel: t('sideChatInjection'),
       terminal: {
@@ -362,8 +376,8 @@ export function SideChatView(props: {
         done: t('sideChatBlockDone'),
         noOutput: t('sideChatBlockNoOutput'),
       },
-      diff: { ...shared, files: (count: number) => t('sideChatBlockFiles', { count }) },
-      read: { ...shared, window: (shown: number, total: number) => t('sideChatBlockWindow', { shown, total }) },
+      diff: { ...shared, ...codeCard },
+      read: { ...shared, ...codeCard, window: (shown: number, total: number) => t('sideChatBlockWindow', { shown, total }) },
     }
   }, [])
 
