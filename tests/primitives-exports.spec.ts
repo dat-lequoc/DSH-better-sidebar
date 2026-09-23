@@ -15,12 +15,38 @@
  * bundle through a re-export rather than a direct import.
  */
 import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
+import { readFileSync, readdirSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import * as primitives from '@deepseek-ai/dsh-client-ui-primitives'
 
 /** The specifier whose named exports the plugin depends on. */
 const PACKAGE = '@deepseek-ai/dsh-client-ui-primitives'
+
+const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
+
+/**
+ * Every TypeScript source under the given roots.
+ *
+ * Deliberately a plain readdir walk rather than a ripgrep call: this spec used
+ * to shell out to `rg`, which exists on a developer machine but NOT on the CI
+ * runners, so the whole file failed to COLLECT there (`spawnSync rg ENOENT`)
+ * while passing locally. The scan is a few hundred small files.
+ * @param roots - directories relative to the repository root.
+ * @returns absolute file paths, sorted for a stable failure output.
+ */
+function sourceFiles(roots: readonly string[]): string[] {
+  const found: string[] = []
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) walk(path)
+      else if (/\.tsx?$/.test(entry.name)) found.push(path)
+    }
+  }
+  for (const root of roots) walk(resolve(ROOT, root))
+  return found.sort()
+}
 
 /**
  * Every value symbol the repository imports from the primitives package.
@@ -29,10 +55,8 @@ const PACKAGE = '@deepseek-ai/dsh-client-ui-primitives'
  * @returns the imported symbol names, deduplicated.
  */
 function importedSymbols(): string[] {
-  const files = execFileSync('rg', ['-l', PACKAGE, 'src', 'tests'], { encoding: 'utf8' })
-    .trim().split('\n').filter(Boolean)
   const names = new Set<string>()
-  for (const file of files) {
+  for (const file of sourceFiles(['src', 'tests'])) {
     const source = readFileSync(file, 'utf8')
     for (const match of source.matchAll(
       new RegExp(`import\\s+(type\\s+)?\\{([^}]*)\\}\\s+from\\s+['"]${PACKAGE}['"]`, 'g'),
