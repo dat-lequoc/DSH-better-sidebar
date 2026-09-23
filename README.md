@@ -71,14 +71,17 @@
 
 > 🧭 **按你的 DSH 版本选插件版本**（**`0.21.0-rc.1` 起的支持线是 DSH `0.1.7-rc.1` 及之后的 0.1.7 线**；0.1.7 的两个 alpha 与 0.1.6 及更早都不在这条线内）：
 >
-> | 你的 DSH 版本 | 该装的 dsh-better-sidebar | peer 声明 |
+> | 你的 DSH 版本 | 安装命令 | 版本 / peer 声明 |
 > | --- | --- | --- |
-> | **0.1.7-rc.1+**（含之后的 0.1.7 正式版） | **`dsh-better-sidebar@alpha`** → **`0.21.0-rc.1`**（当前版本） | `^0.1.7-rc.1` |
-> | 0.1.7-alpha.1 / 0.1.7-alpha.2 | **没有可装版本**——先把 DSH 升到 rc.1（`npm i -g @deepseek-ai/dsh@0.1.7-rc.1`）再来装本版 | — |
-> | 0.1.6-alpha.2 及更早、`0.1.5-rc.*`（含 npm `latest` 的 0.1.5-rc.3） | `dsh-better-sidebar@latest` → **`0.19.1`** | `^0.1.5-rc.1` |
-> | `0.1.5-alpha.2` 及更早的 `0.1.x` 预发布 | **`0.19.0-alpha.1`** / **`0.18.1`** / **`0.17.1`**——取 peer 元组对得上的那一版 | `^0.1.5-alpha.2` / `^0.1.2-rc.1` / `^0.1.0-rc.8` |
+> | **0.1.7-rc.1+**（含之后的 0.1.7 正式版） | `dsh plugin --profile web add dsh-better-sidebar@alpha` | **0.21.0-rc.1**，`^0.1.7-rc.1` |
+> | 0.1.7-alpha.1 / 0.1.7-alpha.2 | **没有可装版本**——先把 DSH 升到 rc.1，再跑上一行：<br>`npm i -g @deepseek-ai/dsh@0.1.7-rc.1` | — |
+> | 0.1.6-alpha.2 及更早、`0.1.5-rc.*`（含 npm `latest` 的 0.1.5-rc.3） | `dsh plugin --profile web add dsh-better-sidebar@0.19.1` | **0.19.1**（= npm `latest`），`^0.1.5-rc.1` |
+> | `0.1.5-alpha.2` | `dsh plugin --profile web add dsh-better-sidebar@0.19.0-alpha.1` | `^0.1.5-alpha.2` |
+> | `0.1.2-rc.*` | `dsh plugin --profile web add dsh-better-sidebar@0.18.1` | `^0.1.2-rc.1` |
+> | `0.1.2-alpha.2` | `dsh plugin --profile web add dsh-better-sidebar@0.18.0-alpha.0` | `^0.1.2-alpha.2` |
+> | `0.1.0-rc.8` / `0.1.1` | `dsh plugin --profile web add dsh-better-sidebar@0.17.1` | `^0.1.0-rc.8` |
 >
-> peer 写的是**范围**而不是精确钉版：`^0.1.7-rc.1` 天然容纳 0.1.7 的 rc 与正式全线，所以上游继续发 rc.2 或正式版时**不需要换插件版本**。反过来**不要**在 0.1.7 的 alpha 上装 0.19.1——0.1.7 重写了设置服务、改了图标具名导出与会话格式三处硬契约，装上只会坏。
+> 命令里的 `web` 换成你自己的 profile 名即可。**旧版本一律写精确版本号**（`@0.19.1` 而不是 `@latest`），因为 `latest` 会随新的正式版前移。peer 写的是**范围**而不是精确钉版：`^0.1.7-rc.1` 天然容纳 0.1.7 的 rc 与正式全线，所以上游继续发 rc.2 或正式版时**不需要换插件版本**。反过来**不要**在 0.1.7 的 alpha 上装 0.19.1——0.1.7 重写了设置服务、改了图标具名导出与会话格式三处硬契约，装上只会坏。
 
 ```sh
 dsh plugin --profile web add dsh-better-sidebar@alpha

@@ -71,14 +71,17 @@
 
 > 🧭 **Pick the plugin version that matches your DSH** (**from `0.21.0-rc.1` the support line is DSH `0.1.7-rc.1` and any later 0.1.7 release**; the two 0.1.7 alphas and 0.1.6-and-earlier are outside it):
 >
-> | Your DSH | dsh-better-sidebar to install | Peer declared |
+> | Your DSH | Install command | Version / peer declared |
 > | --- | --- | --- |
-> | **0.1.7-rc.1+** (including a later 0.1.7 stable) | **`dsh-better-sidebar@alpha`** → **`0.21.0-rc.1`** (this version) | `^0.1.7-rc.1` |
-> | 0.1.7-alpha.1 / 0.1.7-alpha.2 | **nothing to install** — move DSH to rc.1 first (`npm i -g @deepseek-ai/dsh@0.1.7-rc.1`) | — |
-> | 0.1.6-alpha.2 and earlier, `0.1.5-rc.*` (including the 0.1.5-rc.3 that is npm's `latest`) | `dsh-better-sidebar@latest` → **`0.19.1`** | `^0.1.5-rc.1` |
-> | `0.1.5-alpha.2` and earlier `0.1.x` prereleases | **`0.19.0-alpha.1`** / **`0.18.1`** / **`0.17.1`** — whichever matches that host tuple | `^0.1.5-alpha.2` / `^0.1.2-rc.1` / `^0.1.0-rc.8` |
+> | **0.1.7-rc.1+** (including a later 0.1.7 stable) | `dsh plugin --profile web add dsh-better-sidebar@alpha` | **0.21.0-rc.1**, `^0.1.7-rc.1` |
+> | 0.1.7-alpha.1 / 0.1.7-alpha.2 | **nothing to install** — move DSH to rc.1 first, then run the row above:<br>`npm i -g @deepseek-ai/dsh@0.1.7-rc.1` | — |
+> | 0.1.6-alpha.2 and earlier, `0.1.5-rc.*` (including the 0.1.5-rc.3 that is npm's `latest`) | `dsh plugin --profile web add dsh-better-sidebar@0.19.1` | **0.19.1** (= npm `latest`), `^0.1.5-rc.1` |
+> | `0.1.5-alpha.2` | `dsh plugin --profile web add dsh-better-sidebar@0.19.0-alpha.1` | `^0.1.5-alpha.2` |
+> | `0.1.2-rc.*` | `dsh plugin --profile web add dsh-better-sidebar@0.18.1` | `^0.1.2-rc.1` |
+> | `0.1.2-alpha.2` | `dsh plugin --profile web add dsh-better-sidebar@0.18.0-alpha.0` | `^0.1.2-alpha.2` |
+> | `0.1.0-rc.8` / `0.1.1` | `dsh plugin --profile web add dsh-better-sidebar@0.17.1` | `^0.1.0-rc.8` |
 >
-> The peer is a **range**, not an exact pin: `^0.1.7-rc.1` already admits every 0.1.7 rc and the stable release, so a later rc.2 or a stable 0.1.7 does **not** require a new plugin version. Conversely, do **not** install 0.19.1 on a 0.1.7 alpha — 0.1.7 rewrote the settings service and moved the icon exports and the session format, so it would simply break.
+> Swap `web` for your own profile name. **Older versions are pinned exactly** (`@0.19.1`, not `@latest`), because `latest` moves forward with each new stable cut. The peer is a **range**, not an exact pin: `^0.1.7-rc.1` already admits every 0.1.7 rc and the stable release, so a later rc.2 or a stable 0.1.7 does **not** require a new plugin version. Conversely, do **not** install 0.19.1 on a 0.1.7 alpha — 0.1.7 rewrote the settings service and moved the icon exports and the session format, so it would simply break.
 
 ```sh
 dsh plugin --profile web add dsh-better-sidebar@alpha
