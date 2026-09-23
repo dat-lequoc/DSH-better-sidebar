@@ -2,7 +2,7 @@
 
 > 面向 **消费插件开发者**：如何让你的插件向 better-sidebar 注册新的侧边栏页面（tab）和文件类型预览器。
 >
-> 适用版本：**v0.4.0+**（`ctx.betterSidebar` 服务）；声明式设置 **v0.4.1+**；text/number 设置行 **v0.11.0+**；badge/生命周期/定向打开/插件设置/版本探测 **v0.12.0+**；select 设置行（`settingSelect`）与外链认领（`urlTarget`）**v0.13.0+**；统一 `@deepseek-ai/cordis` 类型基底 **v0.15.2+**。当前版本 **v0.21.0-alpha.1**（npm dist-tag `alpha`；`latest` 仍是 **v0.19.1**，peer 下限 `^0.1.7-alpha.1`，仅支持 DSH **0.1.7-alpha.1+**）。**v0.19.0 移除了自绘右侧面板与自由窗口**（见 §0、§11）；**自 v0.20.0 开发线起**（**注意：0.20.0 从未发布到 npm，这些变更全部落在 v0.21.0-alpha.1**）插件**移除了自带的终端**（宿主 0.1.6 的 `ui-sidebar-terminal` 取代，见 §4.4）、**移除了终端固定（pin）**，并在 0.1.7 上**把浏览器视图与只读文件预览整体让给宿主**（`ui-sidebar-browser` / `ui-sidebar-documentpreview`，见 §4.4、§5.4）、**收敛了外链接管**（见 §4.1）、**重写了设置接入面**（`SettingsForms`，见 §8.2）、**给文件树加了实时刷新**（见 §10）；同时**删除了轮尾产物行接管**（DSH 0.1.6 把 `conversation.chat.turnTail` 从 chain 改成只能追加的 list，替换语义不复存在）。
+> 适用版本：**v0.4.0+**（`ctx.betterSidebar` 服务）；声明式设置 **v0.4.1+**；text/number 设置行 **v0.11.0+**；badge/生命周期/定向打开/插件设置/版本探测 **v0.12.0+**；select 设置行（`settingSelect`）与外链认领（`urlTarget`）**v0.13.0+**；统一 `@deepseek-ai/cordis` 类型基底 **v0.15.2+**。当前版本 **v0.21.0-rc.1**（npm dist-tag `alpha`；`latest` 仍是 **v0.19.1**，peer 下限 `^0.1.7-rc.1`，仅支持 DSH **0.1.7-rc.1+**）。**v0.19.0 移除了自绘右侧面板与自由窗口**（见 §0、§11）；**自 v0.20.0 开发线起**（**注意：0.20.0 从未发布到 npm，这些变更全部落在 v0.21.0-rc.1**）插件**移除了自带的终端**（宿主 0.1.6 的 `ui-sidebar-terminal` 取代，见 §4.4）、**移除了终端固定（pin）**，并在 0.1.7 上**把浏览器视图与只读文件预览整体让给宿主**（`ui-sidebar-browser` / `ui-sidebar-documentpreview`，见 §4.4、§5.4）、**收敛了外链接管**（见 §4.1）、**重写了设置接入面**（`SettingsForms`，见 §8.2）、**给文件树加了实时刷新**（见 §10）；同时**删除了轮尾产物行接管**（DSH 0.1.6 把 `conversation.chat.turnTail` 从 chain 改成只能追加的 list，替换语义不复存在）。
 > 权威代码：`src/client/service.ts`（服务实现）、`src/client/builtins/`（内置 5 tab + 3 viewer 参考实现）、`lib/types/client/service.d.ts`（类型声明）。
 > 仓库开发规则（硬约束 / CI / 发版）见 [AGENTS.md](../AGENTS.md)。
 
@@ -25,8 +25,8 @@
 | 布局持久化 | 原生栏的布局**只在内存**（刷新后回到折叠默认），插件自己的底部工作台仍然持久化 |
 | 跨会话打开 | 目标会话的右侧栏 store 未挂载时，打开会排队到该会话上屏后重放 |
 | 内置类型接管 | 插件的 `editor` 类型以 `extension` 优先级认领 `dsh-resource://file/**`（压过内置 `ui-sidebar-documentpreview` 的 `text` 预览——即 `fallback` 带），并接管内置 `files` 页面 kind（`openTab('files')` 打开插件的文件树）；插件卸载/禁用时内置实现自动复位。**但认领是有选择的**：宿主自己的文档预览已经覆盖的格式（表格 / PDF / 图片 / Office，清单见 §5.4）由 `editor.canOpen` 主动**拒绝**，地址交回内置 `text` 档 |
-| 文件树实时刷新（v0.21.0-alpha.1+） | 插件接管了内置 `files` 页，所以宿主自己的按目录 watch 覆盖不到这棵树——插件自带一条 `/sidebar/ws/fs-watch` socket：客户端上报**已展开**的目录集，宿主侧按目录 `fs.watch`（150ms 去抖、每连接上限 64 个句柄），变动后只让那一层缓存失效并重列；目录折叠即退订。路径仍走 `fs.tree` 同一道 workspace fence |
-| 链接接管（v0.21.0-alpha.1+） | DOM 层只接管**有类型通过 `urlTarget` 声明认领**的外链（Ctrl/Cmd/Shift/Alt 点击一律放行）；一个都没认领到时**不阻止默认行为**，交回宿主。见 §4.1 的 `urlTarget` |
+| 文件树实时刷新（v0.21.0-rc.1+） | 插件接管了内置 `files` 页，所以宿主自己的按目录 watch 覆盖不到这棵树——插件自带一条 `/sidebar/ws/fs-watch` socket：客户端上报**已展开**的目录集，宿主侧按目录 `fs.watch`（150ms 去抖、每连接上限 64 个句柄），变动后只让那一层缓存失效并重列；目录折叠即退订。路径仍走 `fs.tree` 同一道 workspace fence |
+| 链接接管（v0.21.0-rc.1+） | DOM 层只接管**有类型通过 `urlTarget` 声明认领**的外链（Ctrl/Cmd/Shift/Alt 点击一律放行）；一个都没认领到时**不阻止默认行为**，交回宿主。见 §4.1 的 `urlTarget` |
 | path 种子的去向（v0.19.2+） | `path` seed 的含义**跟随类型**：只有 `editor`（唯一认领 `dsh-resource://file/**` 的类型）把 path 转成资源地址打开（文件落在编辑器）；**其余类型保留页面型打开**，path 随导航 params 落到合成记录的 `tab.path` 供组件消费——组件型 tab 的 path seed 不会被改道到文件编辑器（v0.19.0/0.19.1 上一切 path seed 都被改道，组件从未挂载，#632） |
 | 终端（已交还宿主） | 插件**不再提供任何终端**：宿主 0.1.6 起自带 `ui-sidebar-terminal`（kind `terminal`），插件侧 PTY 栈与 `terminal_*` 工具整体删除。这里不再有「插件终端数量上限」这类语义 |
 | 底部工作台的开合 | 落到底部工作台的打开一律展开它（新建与聚焦都算），因此 `openTab` 的落点永远可见；开合按钮注册在 DSH 会话头的 utilities 槽（`conversation.session.header.utilities`），不在插件自己的宿主里 |
@@ -226,7 +226,7 @@ interface TabDescriptor {
    *
    * **没被认领的链接一律放行**（插件不 preventDefault）：DSH 0.1.7 起正文链接的
    * 去向由宿主的用户设置 `linkOpening` 决定（进侧栏还是新标签页），插件自绘
-   * markdown 里则走 `<a>` 自己的默认行为。**v0.21.0-alpha.1 起那三个「按协议分流」
+   * markdown 里则走 `<a>` 自己的默认行为。**v0.21.0-rc.1 起那三个「按协议分流」
    * 的旧设置项已删除**（旧文档里的键会被忽略），本插件不再有任何接管总闸——
    * 认领与否完全由你的 urlTarget 决定；Ctrl/Cmd/Shift/Alt 点击永远绕过接管。
    * 认领成功但目标类型在打开那一刻已不可用（插件卸载 / 被设置关闭）时，点击
@@ -415,7 +415,7 @@ ctx.effect(() => {
 
 你的 `id` 不可与上述重复，否则 `registerTab` 抛 `"tab type \"X\" already registered"`。
 
-**自 v0.20.0 开发线起删除的类型（迁移提示；0.20.0 从未发布，变更落在 v0.21.0-alpha.1）**：
+**自 v0.20.0 开发线起删除的类型（迁移提示；0.20.0 从未发布，变更落在 v0.21.0-rc.1）**：
 
 | 原 id | 现状 | 你该怎么做 |
 |---|---|---|
@@ -504,7 +504,9 @@ interface FileViewerProps {
 >
 > ⚠️ **让给宿主的格式（重要，影响你的 viewer 能不能被调用）**：DSH 0.1.7 的 `ui-sidebar-documentpreview` 自带 code / excel(xlsx,xls,csv,tsv) / office（宿主侧转 PDF）/ pdf / image / html / markdown / text 预览，并带缩放与**按目录自动刷新**——本插件原有的 image / pdf / binary-download 三个 viewer 描述符因此删除。更重要的是**路由**：插件的 `editor` 类型在 `canOpen` 里对下列扩展名一律返回 false（`src/client/native/index.ts` 的 `HOST_OWNED_EXTS`），把地址让给内置 `text` 档，**根本不会进入本插件的 `matchFileViewer`**：
 >
-> `xlsx xls xlsb xlt xltx xltm ods ots fods csv tsv pdf png jpg jpeg gif webp svg bmp ico avif doc docx dot dotx ppt pptx`
+> `xlsx xls csv tsv fods pdf png jpg jpeg gif webp svg bmp ico doc docx ppt pptx`
+>
+> **这份清单现在是「宿主渲染器实际覆盖的集合」，不多不少**：`v0.21.0-rc.1` 收回了 9 个宿主其实**没有渲染器**的扩展名（`xlsb` / `xlt` / `xltx` / `xltm` / `ots` / `dot` / `dotx` / `avif` / `ods`——前两个落在宿主的 `document/unviewable.ts`「已知二进制、无渲染器」表里，其余落回 text 兜底后按二进制判定失败，一律只有「暂不支持预览」），它们重新由插件的 `code` catch-all 认领并落到下载面板。`fods` 保留让出：宿主会用纯文本显示那段扁平 XML，比下载面板有用。`tests/native-surface.spec.ts` 双向钉住这条边界（宿主能渲染的必须拒绝、宿主不能渲染的必须认领）。
 >
 > 后果：**你注册这些扩展名的 viewer 仍然合法（注册表不冻结 id，`matchFileViewer` 也会命中），但通过聊天 / 文件树 / 编辑器的正常文件打开路径拿不到它们**——那是宿主的文档预览。要在这些格式上做文章，只能自己在页面里渲染（或像 [Office 预览插件](https://github.com/HuanLinOTO/dsh-plugin-better-sidebar-plugin-office) 那样在宿主接管前的旧版本上生效）。**可用的是 md/markdown / html/htm 与 code catch-all 三类**（外加任何不在上表里的扩展名）。未知二进制（`.zip` / `.wasm`）仍走 code 认领 → `fs.read` 判 binary → head 重匹配无 sniffer → 编辑器渲染下载面板，功能不回归。
 
